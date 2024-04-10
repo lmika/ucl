@@ -19,8 +19,13 @@ type astCmd struct {
 	Args []astCmdArg `parser:"@@*"`
 }
 
-var parser = participle.MustBuild[astCmd]()
+type astPipeline struct {
+	First *astCmd   `parser:"@@"`
+	Rest  []*astCmd `parser:"( '|' @@ )*"`
+}
 
-func parse(r io.Reader) (*astCmd, error) {
+var parser = participle.MustBuild[astPipeline]()
+
+func parse(r io.Reader) (*astPipeline, error) {
 	return parser.Parse("test", r)
 }

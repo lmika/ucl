@@ -5,8 +5,16 @@ import (
 )
 
 type evalCtx struct {
-	parent   *evalCtx
-	commands map[string]invokable
+	parent        *evalCtx
+	currentStream stream
+	commands      map[string]invokable
+}
+
+func (ec *evalCtx) withCurrentStream(s stream) *evalCtx {
+	return &evalCtx{
+		parent:        ec,
+		currentStream: s,
+	}
 }
 
 func (ec *evalCtx) addCmd(name string, inv invokable) {
@@ -19,11 +27,11 @@ func (ec *evalCtx) addCmd(name string, inv invokable) {
 
 func (ec *evalCtx) lookupCmd(name string) (invokable, error) {
 	for e := ec; e != nil; e = e.parent {
-		if ec.commands == nil {
+		if e.commands == nil {
 			continue
 		}
 
-		if cmd, ok := ec.commands[name]; ok {
+		if cmd, ok := e.commands[name]; ok {
 			return cmd, nil
 		}
 

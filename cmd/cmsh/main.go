@@ -23,7 +23,7 @@ func main() {
 			break
 		}
 
-		if err := inst.Eval(ctx, line); err != nil {
+		if err := inst.EvalAndDisplay(ctx, line); err != nil {
 			log.Printf("%T: %v", err, err)
 		}
 	}
