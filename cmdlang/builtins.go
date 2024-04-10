@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -16,7 +17,9 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 
 	var line strings.Builder
 	for _, arg := range args.args {
-		line.WriteString(arg)
+		if s, ok := arg.(fmt.Stringer); ok {
+			line.WriteString(s.String())
+		}
 	}
 
 	return asStream(line.String()), nil
@@ -41,7 +44,12 @@ func catBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		return nil, err
 	}
 
-	return &fileLinesStream{filename: args.args[0]}, nil
+	filename, err := args.stringArg(0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &fileLinesStream{filename: filename}, nil
 }
 
 type fileLinesStream struct {

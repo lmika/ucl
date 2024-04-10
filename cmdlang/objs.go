@@ -3,13 +3,21 @@ package cmdlang
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 )
 
-type object = any
+type object interface {
+}
+
+type strObject string
+
+func (s strObject) String() string {
+	return string(s)
+}
 
 type invocationArgs struct {
-	args     []string
+	args     []object
 	inStream stream
 }
 
@@ -18,6 +26,17 @@ func (ia invocationArgs) expectArgn(x int) error {
 		return errors.New("expected at least " + strconv.Itoa(x) + " args")
 	}
 	return nil
+}
+
+func (ia invocationArgs) stringArg(i int) (string, error) {
+	if len(ia.args) < i {
+		return "", errors.New("expected at least " + strconv.Itoa(i) + " args")
+	}
+	s, ok := ia.args[i].(fmt.Stringer)
+	if !ok {
+		return "", errors.New("expected a string arg")
+	}
+	return s.String(), nil
 }
 
 // invokable is an object that can be executed as a command

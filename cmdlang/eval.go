@@ -3,8 +3,10 @@ package cmdlang
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/lmika/gopkgs/fp/slices"
 	"strconv"
+	"strings"
 )
 
 type evaluator struct {
@@ -36,7 +38,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, ast *astCmd) (objec
 		return nil, err
 	}
 
-	args, err := slices.MapWithError(ast.Args, func(a astCmdArg) (string, error) {
+	args, err := slices.MapWithError(ast.Args, func(a astCmdArg) (object, error) {
 		return e.evalArg(ctx, ec, a)
 	})
 	if err != nil {
@@ -49,20 +51,49 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, ast *astCmd) (objec
 	})
 }
 
-func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (string, error) {
-	return e.evalLiteral(ctx, ec, n.Literal)
+func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (object, error) {
+	switch {
+	case n.Literal != nil:
+		return e.evalLiteral(ctx, ec, n.Literal)
+	case n.Sub != nil:
+		return e.evalSub(ctx, ec, n.Sub)
+	}
+	return nil, errors.New("unhandled arg type")
 }
 
-func (e evaluator) evalLiteral(ctx context.Context, ec *evalCtx, n astLiteral) (string, error) {
+func (e evaluator) evalLiteral(ctx context.Context, ec *evalCtx, n *astLiteral) (object, error) {
 	switch {
 	case n.Str != nil:
 		uq, err := strconv.Unquote(*n.Str)
 		if err != nil {
 			return "", err
 		}
-		return uq, nil
+		return strObject(uq), nil
 	case n.Ident != nil:
-		return *n.Ident, nil
+		return strObject(*n.Ident), nil
 	}
 	return "", errors.New("unhandled literal type")
+}
+
+func (e evaluator) evalSub(ctx context.Context, ec *evalCtx, n *astPipeline) (object, error) {
+	pipelineRes, err := e.evaluate(ctx, ec, n)
+	if err != nil {
+		return "", err
+	}
+
+	switch v := pipelineRes.(type) {
+	case stream:
+		// TODO: use proper lists here, not a string join
+		sb := strings.Builder{}
+		if err := forEach(v, func(o object) error {
+			// TODO: use o.String()
+			sb.WriteString(fmt.Sprint(o))
+			return nil
+		}); err != nil {
+			return "", err
+		}
+
+		return strObject(sb.String()), nil
+	}
+	return pipelineRes, nil
 }
