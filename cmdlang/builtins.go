@@ -11,7 +11,7 @@ import (
 
 func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if len(args.args) == 0 {
-		return asStream(strObject("")), nil
+		return strObject(""), nil
 	}
 
 	var line strings.Builder
@@ -21,7 +21,7 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		}
 	}
 
-	return asStream(strObject(line.String())), nil
+	return strObject(line.String()), nil
 }
 
 func setBuiltin(ctx context.Context, args invocationArgs) (object, error) {
