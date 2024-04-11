@@ -45,10 +45,17 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, ast *astCmd) (objec
 		return nil, err
 	}
 
-	return cmd.invoke(ctx, invocationArgs{
-		args:     args,
-		inStream: ec.currentStream,
-	})
+	if ec.currentStream != nil {
+		if si, ok := cmd.(streamInvokable); ok {
+			return si.invokeWithStream(ctx, ec.currentStream, invocationArgs{args: args})
+		} else {
+			if err := ec.currentStream.close(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return cmd.invoke(ctx, invocationArgs{args: args})
 }
 
 func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (object, error) {

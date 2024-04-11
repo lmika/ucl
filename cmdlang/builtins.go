@@ -25,10 +25,10 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return asStream(line.String()), nil
 }
 
-func toUpperBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+func toUpperBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
 	// Handle args
 	return mapFilterStream{
-		in: args.inStream,
+		in: inStream,
 		mapFn: func(x object) (object, bool) {
 			s, ok := x.(string)
 			if !ok {
@@ -86,8 +86,8 @@ func (f *fileLinesStream) close() error {
 	return nil
 }
 
-func errorTestBuiltin(ctx context.Context, args invocationArgs) (object, error) {
-	return &timeBombStream{args.inStream, 2}, nil
+func errorTestBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
+	return &timeBombStream{inStream, 2}, nil
 }
 
 type timeBombStream struct {
@@ -104,9 +104,5 @@ func (ms *timeBombStream) next() (object, error) {
 }
 
 func (ms *timeBombStream) close() error {
-	closable, ok := ms.in.(closableStream)
-	if ok {
-		return closable.close()
-	}
-	return nil
+	return ms.in.close()
 }

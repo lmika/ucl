@@ -13,10 +13,10 @@ type Inst struct {
 func New() *Inst {
 	rootEC := evalCtx{}
 	rootEC.addCmd("echo", invokableFunc(echoBuiltin))
-	rootEC.addCmd("toUpper", invokableFunc(toUpperBuiltin))
+	rootEC.addCmd("toUpper", invokableStreamFunc(toUpperBuiltin))
 	rootEC.addCmd("cat", invokableFunc(catBuiltin))
 
-	rootEC.addCmd("testTimebomb", invokableFunc(errorTestBuiltin))
+	rootEC.addCmd("testTimebomb", invokableStreamFunc(errorTestBuiltin))
 
 	return &Inst{
 		rootEC: &rootEC,

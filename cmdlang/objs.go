@@ -17,8 +17,7 @@ func (s strObject) String() string {
 }
 
 type invocationArgs struct {
-	args     []object
-	inStream stream
+	args []object
 }
 
 func (ia invocationArgs) expectArgn(x int) error {
@@ -44,8 +43,23 @@ type invokable interface {
 	invoke(ctx context.Context, args invocationArgs) (object, error)
 }
 
+type streamInvokable interface {
+	invokable
+	invokeWithStream(context.Context, stream, invocationArgs) (object, error)
+}
+
 type invokableFunc func(ctx context.Context, args invocationArgs) (object, error)
 
 func (i invokableFunc) invoke(ctx context.Context, args invocationArgs) (object, error) {
 	return i(ctx, args)
+}
+
+type invokableStreamFunc func(ctx context.Context, inStream stream, args invocationArgs) (object, error)
+
+func (i invokableStreamFunc) invoke(ctx context.Context, args invocationArgs) (object, error) {
+	return i(ctx, nil, args)
+}
+
+func (i invokableStreamFunc) invokeWithStream(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
+	return i(ctx, inStream, args)
 }

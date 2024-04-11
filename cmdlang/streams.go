@@ -7,21 +7,25 @@ import (
 
 // stream is an object which returns a collection of objects from a source.
 // These are used to create pipelines
+//
+// The stream implementation can expect close to be called if at least one next() call is made.  Otherwise
+// closableStream cannot assume that close will be called (the pipe may be left unconsumed, for example).
+//
+// It is the job of the final iterator to call close. Any steam that consumes from another stream must
+// implement this, and call close on the parent stream.
 type stream interface {
 	// next pulls the next object from the stream.  If an object is available, the result is the
 	// object and a nil error.  If no more objects are available, error returns io.EOF.
 	// Otherwise, an error is returned.
 	next() (object, error)
+
+	close() error
 }
 
 // forEach will iterate over all the items of a stream. The iterating function can return an error, which will
 // be returned as is. A stream that has consumed every item will return nil. The stream will automatically be closed.
 func forEach(s stream, f func(object) error) (err error) {
-	defer func() {
-		if c, ok := s.(closableStream); ok {
-			c.close()
-		}
-	}()
+	defer s.close()
 
 	var sv object
 	for sv, err = s.next(); err == nil; sv, err = s.next() {
@@ -33,19 +37,6 @@ func forEach(s stream, f func(object) error) (err error) {
 		return err
 	}
 	return nil
-}
-
-// closableStream is a stream that has opened resources that must be closed when the stream is
-// consumed.  The stream implementation can expect close to be called if at least one next() call is made.  Otherwise
-// closableStream cannot assume that close will be called (the pipe may be left unconsumed, for example).
-//
-// It is the job of the final iterator to call close. Any steam that consumes from another stream must
-// implement this, and call close on the parent stream.
-type closableStream interface {
-	stream
-
-	// close closes the stream
-	close() error
 }
 
 // asStream converts an object to a stream.  If t is already a stream, it's returned as is.
@@ -63,6 +54,8 @@ func (s emptyStream) next() (object, error) {
 	return nil, io.EOF
 }
 
+func (s emptyStream) close() error { return nil }
+
 type singletonStream struct {
 	t        any
 	consumed bool
@@ -75,6 +68,8 @@ func (s *singletonStream) next() (object, error) {
 	s.consumed = true
 	return s.t, nil
 }
+
+func (s *singletonStream) close() error { return nil }
 
 type mapFilterStream struct {
 	in    stream
@@ -96,9 +91,5 @@ func (ms mapFilterStream) next() (object, error) {
 }
 
 func (ms mapFilterStream) close() error {
-	closable, ok := ms.in.(closableStream)
-	if ok {
-		return closable.close()
-	}
-	return nil
+	return ms.in.close()
 }
