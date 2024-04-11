@@ -8,6 +8,7 @@ type evalCtx struct {
 	parent        *evalCtx
 	currentStream stream
 	commands      map[string]invokable
+	vars          map[string]object
 }
 
 func (ec *evalCtx) withCurrentStream(s stream) *evalCtx {
@@ -23,6 +24,27 @@ func (ec *evalCtx) addCmd(name string, inv invokable) {
 	}
 
 	ec.commands[name] = inv
+}
+
+func (ec *evalCtx) setVar(name string, val object) {
+	if ec.vars == nil {
+		ec.vars = make(map[string]object)
+	}
+	ec.vars[name] = val
+}
+
+func (ec *evalCtx) getVar(name string) (object, bool) {
+	if ec.vars == nil {
+		return nil, false
+	}
+
+	if v, ok := ec.vars[name]; ok {
+		return v, true
+	} else if ec.parent != nil {
+		return ec.parent.getVar(name)
+	}
+
+	return nil, false
 }
 
 func (ec *evalCtx) lookupCmd(name string) (invokable, error) {

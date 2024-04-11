@@ -17,6 +17,7 @@ func (s strObject) String() string {
 }
 
 type invocationArgs struct {
+	ec   *evalCtx
 	args []object
 }
 

@@ -12,6 +12,7 @@ type astLiteral struct {
 
 type astCmdArg struct {
 	Literal *astLiteral  `parser:"@@"`
+	Var     *string      `parser:"| '$' @Ident"`
 	Sub     *astPipeline `parser:"| '(' @@ ')'"`
 }
 

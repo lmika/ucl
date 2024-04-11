@@ -45,9 +45,11 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, ast *astCmd) (objec
 		return nil, err
 	}
 
+	invArgs := invocationArgs{ec: ec, args: args}
+
 	if ec.currentStream != nil {
 		if si, ok := cmd.(streamInvokable); ok {
-			return si.invokeWithStream(ctx, ec.currentStream, invocationArgs{args: args})
+			return si.invokeWithStream(ctx, ec.currentStream, invArgs)
 		} else {
 			if err := ec.currentStream.close(); err != nil {
 				return nil, err
@@ -55,13 +57,19 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, ast *astCmd) (objec
 		}
 	}
 
-	return cmd.invoke(ctx, invocationArgs{args: args})
+	return cmd.invoke(ctx, invArgs)
 }
 
 func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (object, error) {
 	switch {
 	case n.Literal != nil:
 		return e.evalLiteral(ctx, ec, n.Literal)
+	case n.Var != nil:
+		v, ok := ec.getVar(*n.Var)
+		if !ok {
+			return nil, fmt.Errorf("unknown variable %s", *n.Var)
+		}
+		return v, nil
 	case n.Sub != nil:
 		return e.evalSub(ctx, ec, n.Sub)
 	}

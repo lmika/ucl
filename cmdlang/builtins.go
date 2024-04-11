@@ -25,6 +25,23 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return asStream(line.String()), nil
 }
 
+func setBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(2); err != nil {
+		return nil, err
+	}
+
+	name, err := args.stringArg(0)
+	if err != nil {
+		return nil, err
+	}
+
+	newVal := args.args[1]
+
+	// TODO: if the value is a stream, consume the stream and save it as a list
+	args.ec.setVar(name, newVal)
+	return newVal, nil
+}
+
 func toUpperBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
 	// Handle args
 	return mapFilterStream{
