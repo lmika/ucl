@@ -2,43 +2,78 @@ package cmdlang
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 )
 
 type Inst struct {
+	out io.Writer
+
 	rootEC *evalCtx
 }
 
-func New() *Inst {
+type InstOption func(*Inst)
+
+func WithOut(out io.Writer) InstOption {
+	return func(i *Inst) {
+		i.out = out
+	}
+}
+
+func New(opts ...InstOption) *Inst {
 	rootEC := evalCtx{}
+
 	rootEC.addCmd("echo", invokableFunc(echoBuiltin))
 	rootEC.addCmd("set", invokableFunc(setBuiltin))
 	rootEC.addCmd("toUpper", invokableStreamFunc(toUpperBuiltin))
 	rootEC.addCmd("cat", invokableFunc(catBuiltin))
 
-	rootEC.addCmd("testTimebomb", invokableStreamFunc(errorTestBuiltin))
+	//rootEC.addCmd("testTimebomb", invokableStreamFunc(errorTestBuiltin))
 
 	rootEC.setVar("hello", strObject("world"))
 
-	return &Inst{
+	inst := &Inst{
+		out:    os.Stdout,
 		rootEC: &rootEC,
 	}
+
+	for _, opt := range opts {
+		opt(inst)
+	}
+
+	return inst
 }
 
-// TODO: return value?
 func (inst *Inst) Eval(ctx context.Context, expr string) (any, error) {
+	res, err := inst.eval(ctx, expr)
+	if err != nil {
+		return nil, err
+	}
+
+	goRes, ok := toGoValue(res)
+	if !ok {
+		return nil, errors.New("result not convertable to go")
+	}
+
+	return goRes, nil
+}
+
+func (inst *Inst) eval(ctx context.Context, expr string) (object, error) {
 	ast, err := parse(strings.NewReader(expr))
 	if err != nil {
 		return nil, err
 	}
 
 	eval := evaluator{}
-	return eval.evaluate(ctx, inst.rootEC, ast)
+
+	return eval.evalStatement(ctx, inst.rootEC, ast)
 }
 
 func (inst *Inst) EvalAndDisplay(ctx context.Context, expr string) error {
-	res, err := inst.Eval(ctx, expr)
+	res, err := inst.eval(ctx, expr)
 	if err != nil {
 		return err
 	}
@@ -49,9 +84,11 @@ func (inst *Inst) EvalAndDisplay(ctx context.Context, expr string) error {
 func (inst *Inst) display(ctx context.Context, res object) (err error) {
 	switch v := res.(type) {
 	case stream:
-		return forEach(v, func(o object) error { return inst.display(ctx, o) })
-	case string:
-		fmt.Println(v)
+		return forEach(v, func(o object, _ int) error { return inst.display(ctx, o) })
+	default:
+		if _, err = fmt.Fprintln(inst.out, v.String()); err != nil {
+			return err
+		}
 	}
 	return nil
 }

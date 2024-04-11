@@ -8,6 +8,7 @@ import (
 )
 
 type object interface {
+	String() string
 }
 
 type strObject string
@@ -16,7 +17,19 @@ func (s strObject) String() string {
 	return string(s)
 }
 
+func toGoValue(obj object) (interface{}, bool) {
+	switch v := obj.(type) {
+	case nil:
+		return nil, true
+	case strObject:
+		return string(v), true
+	}
+
+	return nil, false
+}
+
 type invocationArgs struct {
+	inst *Inst
 	ec   *evalCtx
 	args []object
 }

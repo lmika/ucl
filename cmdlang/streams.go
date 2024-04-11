@@ -2,6 +2,7 @@ package cmdlang
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -14,6 +15,8 @@ import (
 // It is the job of the final iterator to call close. Any steam that consumes from another stream must
 // implement this, and call close on the parent stream.
 type stream interface {
+	object
+
 	// next pulls the next object from the stream.  If an object is available, the result is the
 	// object and a nil error.  If no more objects are available, error returns io.EOF.
 	// Otherwise, an error is returned.
@@ -24,14 +27,16 @@ type stream interface {
 
 // forEach will iterate over all the items of a stream. The iterating function can return an error, which will
 // be returned as is. A stream that has consumed every item will return nil. The stream will automatically be closed.
-func forEach(s stream, f func(object) error) (err error) {
+func forEach(s stream, f func(object, int) error) (err error) {
 	defer s.close()
 
 	var sv object
+	i := 0
 	for sv, err = s.next(); err == nil; sv, err = s.next() {
-		if err := f(sv); err != nil {
+		if err := f(sv, i); err != nil {
 			return err
 		}
+		i += 1
 	}
 	if !errors.Is(err, io.EOF) {
 		return err
@@ -50,6 +55,10 @@ func asStream(v object) stream {
 
 type emptyStream struct{}
 
+func (s *emptyStream) String() string {
+	return "(nil)"
+}
+
 func (s emptyStream) next() (object, error) {
 	return nil, io.EOF
 }
@@ -57,8 +66,12 @@ func (s emptyStream) next() (object, error) {
 func (s emptyStream) close() error { return nil }
 
 type singletonStream struct {
-	t        any
+	t        object
 	consumed bool
+}
+
+func (s *singletonStream) String() string {
+	return s.t.String()
 }
 
 func (s *singletonStream) next() (object, error) {
@@ -71,9 +84,35 @@ func (s *singletonStream) next() (object, error) {
 
 func (s *singletonStream) close() error { return nil }
 
+type listIterStream struct {
+	list []object
+	cusr int
+}
+
+func (s *listIterStream) String() string {
+	return fmt.Sprintf("listIterStream{list: %v}", s.list)
+}
+
+func (s *listIterStream) next() (o object, err error) {
+	if s.cusr >= len(s.list) {
+		return nil, io.EOF
+	}
+
+	o = s.list[s.cusr]
+	s.cusr += 1
+
+	return o, nil
+}
+
+func (s *listIterStream) close() error { return nil }
+
 type mapFilterStream struct {
 	in    stream
 	mapFn func(x object) (object, bool)
+}
+
+func (ms mapFilterStream) String() string {
+	return fmt.Sprintf("mapFilterStream{in: %v}", ms.in)
 }
 
 func (ms mapFilterStream) next() (object, error) {

@@ -12,7 +12,33 @@ import (
 type evaluator struct {
 }
 
-func (e evaluator) evaluate(ctx context.Context, ec *evalCtx, n *astPipeline) (object, error) {
+func (e evaluator) evalStatement(ctx context.Context, ec *evalCtx, n *astStatements) (object, error) {
+	res, err := e.evalPipeline(ctx, ec, n.First)
+	if err != nil {
+		return nil, err
+	}
+	if len(n.Rest) == 0 {
+		return res, nil
+	}
+
+	for _, rest := range n.Rest {
+		// Discard and close unused streams
+		if s, isStream := res.(stream); isStream {
+			if err := s.close(); err != nil {
+				return nil, err
+			}
+		}
+
+		out, err := e.evalPipeline(ctx, ec, rest)
+		if err != nil {
+			return nil, err
+		}
+		res = out
+	}
+	return res, nil
+}
+
+func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline) (object, error) {
 	res, err := e.evalCmd(ctx, ec, n.First)
 	if err != nil {
 		return nil, err
@@ -81,31 +107,31 @@ func (e evaluator) evalLiteral(ctx context.Context, ec *evalCtx, n *astLiteral) 
 	case n.Str != nil:
 		uq, err := strconv.Unquote(*n.Str)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		return strObject(uq), nil
 	case n.Ident != nil:
 		return strObject(*n.Ident), nil
 	}
-	return "", errors.New("unhandled literal type")
+	return nil, errors.New("unhandled literal type")
 }
 
 func (e evaluator) evalSub(ctx context.Context, ec *evalCtx, n *astPipeline) (object, error) {
-	pipelineRes, err := e.evaluate(ctx, ec, n)
+	pipelineRes, err := e.evalPipeline(ctx, ec, n)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	switch v := pipelineRes.(type) {
 	case stream:
 		// TODO: use proper lists here, not a string join
 		sb := strings.Builder{}
-		if err := forEach(v, func(o object) error {
+		if err := forEach(v, func(o object, _ int) error {
 			// TODO: use o.String()
 			sb.WriteString(fmt.Sprint(o))
 			return nil
 		}); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		return strObject(sb.String()), nil

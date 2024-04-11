@@ -3,7 +3,6 @@ package cmdlang
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +11,7 @@ import (
 
 func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if len(args.args) == 0 {
-		return asStream(""), nil
+		return asStream(strObject("")), nil
 	}
 
 	var line strings.Builder
@@ -22,7 +21,7 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		}
 	}
 
-	return asStream(line.String()), nil
+	return asStream(strObject(line.String())), nil
 }
 
 func setBuiltin(ctx context.Context, args invocationArgs) (object, error) {
@@ -47,11 +46,11 @@ func toUpperBuiltin(ctx context.Context, inStream stream, args invocationArgs) (
 	return mapFilterStream{
 		in: inStream,
 		mapFn: func(x object) (object, bool) {
-			s, ok := x.(string)
+			s, ok := x.(strObject)
 			if !ok {
 				return nil, false
 			}
-			return strings.ToUpper(s), true
+			return strObject(strings.ToUpper(string(s))), true
 		},
 	}, nil
 }
@@ -75,6 +74,10 @@ type fileLinesStream struct {
 	scnr     *bufio.Scanner
 }
 
+func (f *fileLinesStream) String() string {
+	return fmt.Sprintf("fileLinesStream{file: %v}", f.filename)
+}
+
 func (f *fileLinesStream) next() (object, error) {
 	var err error
 
@@ -88,7 +91,7 @@ func (f *fileLinesStream) next() (object, error) {
 	}
 
 	if f.scnr.Scan() {
-		return f.scnr.Text(), nil
+		return strObject(f.scnr.Text()), nil
 	}
 	if f.scnr.Err() == nil {
 		return nil, io.EOF
@@ -103,6 +106,7 @@ func (f *fileLinesStream) close() error {
 	return nil
 }
 
+/*
 func errorTestBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
 	return &timeBombStream{inStream, 2}, nil
 }
@@ -123,3 +127,4 @@ func (ms *timeBombStream) next() (object, error) {
 func (ms *timeBombStream) close() error {
 	return ms.in.close()
 }
+*/

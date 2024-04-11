@@ -26,8 +26,13 @@ type astPipeline struct {
 	Rest  []*astCmd `parser:"( '|' @@ )*"`
 }
 
-var parser = participle.MustBuild[astPipeline]()
+type astStatements struct {
+	First *astPipeline   `parser:"@@"`
+	Rest  []*astPipeline `parser:"( ';' @@ )*"` // TODO: also add support for newlines
+}
 
-func parse(r io.Reader) (*astPipeline, error) {
+var parser = participle.MustBuild[astStatements]()
+
+func parse(r io.Reader) (*astStatements, error) {
 	return parser.Parse("test", r)
 }
