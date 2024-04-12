@@ -47,6 +47,13 @@ func New(opts ...InstOption) *Inst {
 	return inst
 }
 
+func (inst *Inst) Out() io.Writer {
+	if inst.out == nil {
+		return os.Stdout
+	}
+	return inst.out
+}
+
 func (inst *Inst) Eval(ctx context.Context, expr string) (any, error) {
 	res, err := inst.eval(ctx, expr)
 	if err != nil {
@@ -67,7 +74,7 @@ func (inst *Inst) eval(ctx context.Context, expr string) (object, error) {
 		return nil, err
 	}
 
-	eval := evaluator{}
+	eval := evaluator{inst: inst}
 
 	return eval.evalStatement(ctx, inst.rootEC, ast)
 }
@@ -83,6 +90,10 @@ func (inst *Inst) EvalAndDisplay(ctx context.Context, expr string) error {
 
 func (inst *Inst) display(ctx context.Context, res object) (err error) {
 	switch v := res.(type) {
+	case nil:
+		if _, err = fmt.Fprintln(inst.out, "(nil)"); err != nil {
+			return err
+		}
 	case stream:
 		return forEach(v, func(o object, _ int) error { return inst.display(ctx, o) })
 	default:

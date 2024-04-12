@@ -29,9 +29,10 @@ func toGoValue(obj object) (interface{}, bool) {
 }
 
 type invocationArgs struct {
-	inst *Inst
-	ec   *evalCtx
-	args []object
+	inst          *Inst
+	ec            *evalCtx
+	currentStream stream
+	args          []object
 }
 
 func (ia invocationArgs) expectArgn(x int) error {

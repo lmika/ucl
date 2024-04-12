@@ -11,7 +11,9 @@ import (
 
 func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if len(args.args) == 0 {
-		return strObject(""), nil
+		if _, err := fmt.Fprintln(args.inst.Out()); err != nil {
+			return nil, err
+		}
 	}
 
 	var line strings.Builder
@@ -21,7 +23,10 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		}
 	}
 
-	return strObject(line.String()), nil
+	if _, err := fmt.Fprintln(args.inst.Out(), line.String()); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 func setBuiltin(ctx context.Context, args invocationArgs) (object, error) {

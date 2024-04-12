@@ -5,17 +5,9 @@ import (
 )
 
 type evalCtx struct {
-	parent        *evalCtx
-	currentStream stream
-	commands      map[string]invokable
-	vars          map[string]object
-}
-
-func (ec *evalCtx) withCurrentStream(s stream) *evalCtx {
-	return &evalCtx{
-		parent:        ec,
-		currentStream: s,
-	}
+	parent   *evalCtx
+	commands map[string]invokable
+	vars     map[string]object
 }
 
 func (ec *evalCtx) addCmd(name string, inv invokable) {

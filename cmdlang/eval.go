@@ -10,6 +10,7 @@ import (
 )
 
 type evaluator struct {
+	inst *Inst
 }
 
 func (e evaluator) evalStatement(ctx context.Context, ec *evalCtx, n *astStatements) (object, error) {
@@ -39,7 +40,7 @@ func (e evaluator) evalStatement(ctx context.Context, ec *evalCtx, n *astStateme
 }
 
 func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline) (object, error) {
-	res, err := e.evalCmd(ctx, ec, n.First)
+	res, err := e.evalCmd(ctx, ec, nil, n.First)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,7 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 
 	// Command is a pipeline, so build it out
 	for _, rest := range n.Rest {
-		out, err := e.evalCmd(ctx, ec.withCurrentStream(asStream(res)), rest)
+		out, err := e.evalCmd(ctx, ec, asStream(res), rest)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +59,7 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 	return res, nil
 }
 
-func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, ast *astCmd) (object, error) {
+func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd) (object, error) {
 	cmd, err := ec.lookupCmd(ast.Name)
 	if err != nil {
 		return nil, err
@@ -71,13 +72,13 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, ast *astCmd) (objec
 		return nil, err
 	}
 
-	invArgs := invocationArgs{ec: ec, args: args}
+	invArgs := invocationArgs{ec: ec, inst: e.inst, args: args, currentStream: currentStream}
 
-	if ec.currentStream != nil {
+	if currentStream != nil {
 		if si, ok := cmd.(streamInvokable); ok {
-			return si.invokeWithStream(ctx, ec.currentStream, invArgs)
+			return si.invokeWithStream(ctx, currentStream, invArgs)
 		} else {
-			if err := ec.currentStream.close(); err != nil {
+			if err := currentStream.close(); err != nil {
 				return nil, err
 			}
 		}
