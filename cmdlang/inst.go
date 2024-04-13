@@ -31,6 +31,8 @@ func New(opts ...InstOption) *Inst {
 	rootEC.addCmd("toUpper", invokableStreamFunc(toUpperBuiltin))
 	rootEC.addCmd("cat", invokableFunc(catBuiltin))
 
+	rootEC.addMacro("if", macroFunc(ifBuiltin))
+
 	//rootEC.addCmd("testTimebomb", invokableStreamFunc(errorTestBuiltin))
 
 	rootEC.setVar("hello", strObject("world"))
@@ -76,7 +78,7 @@ func (inst *Inst) eval(ctx context.Context, expr string) (object, error) {
 
 	eval := evaluator{inst: inst}
 
-	return eval.evalStatement(ctx, inst.rootEC, ast)
+	return eval.evalScript(ctx, inst.rootEC, ast)
 }
 
 func (inst *Inst) EvalAndDisplay(ctx context.Context, expr string) error {

@@ -3,6 +3,7 @@ package cmdlang
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		if _, err := fmt.Fprintln(args.inst.Out()); err != nil {
 			return nil, err
 		}
+		return nil, nil
 	}
 
 	var line strings.Builder
@@ -83,6 +85,10 @@ func (f *fileLinesStream) String() string {
 	return fmt.Sprintf("fileLinesStream{file: %v}", f.filename)
 }
 
+func (f *fileLinesStream) Truthy() bool {
+	return true // ??
+}
+
 func (f *fileLinesStream) next() (object, error) {
 	var err error
 
@@ -111,25 +117,40 @@ func (f *fileLinesStream) close() error {
 	return nil
 }
 
-/*
-func errorTestBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
-	return &timeBombStream{inStream, 2}, nil
-}
-
-type timeBombStream struct {
-	in stream
-	x  int
-}
-
-func (ms *timeBombStream) next() (object, error) {
-	if ms.x > 0 {
-		ms.x--
-		return ms.in.next()
+func ifBuiltin(ctx context.Context, args macroArgs) (object, error) {
+	if args.nargs() < 2 {
+		return nil, errors.New("need at least 2 arguments")
 	}
-	return nil, errors.New("BOOM")
-}
 
-func (ms *timeBombStream) close() error {
-	return ms.in.close()
+	if guard, err := args.evalArg(ctx, 0); err == nil && isTruthy(guard) {
+		return args.evalBlock(ctx, 1)
+	} else if err != nil {
+		return nil, err
+	}
+
+	args.shift(2)
+	for args.identIs(ctx, 0, "elif") {
+		args.shift(1)
+
+		if args.nargs() < 2 {
+			return nil, errors.New("need at least 2 arguments")
+		}
+
+		if guard, err := args.evalArg(ctx, 0); err == nil && isTruthy(guard) {
+			return args.evalBlock(ctx, 1)
+		} else if err != nil {
+			return nil, err
+		}
+
+		args.shift(2)
+	}
+
+	if args.identIs(ctx, 0, "else") && args.nargs() > 1 {
+		return args.evalBlock(ctx, 1)
+	} else if args.nargs() == 0 {
+		// no elif or else
+		return nil, nil
+	}
+
+	return nil, errors.New("malformed if-elif-else")
 }
-*/

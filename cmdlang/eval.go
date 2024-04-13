@@ -13,6 +13,22 @@ type evaluator struct {
 	inst *Inst
 }
 
+func (e evaluator) evalBlock(ctx context.Context, ec *evalCtx, n *astBlock) (lastRes object, err error) {
+	// TODO: push scope?
+
+	for _, s := range n.Statements {
+		lastRes, err = e.evalStatement(ctx, ec, s)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return lastRes, nil
+}
+
+func (e evaluator) evalScript(ctx context.Context, ec *evalCtx, n *astScript) (lastRes object, err error) {
+	return e.evalStatement(ctx, ec, n.Statements)
+}
+
 func (e evaluator) evalStatement(ctx context.Context, ec *evalCtx, n *astStatements) (object, error) {
 	res, err := e.evalPipeline(ctx, ec, n.First)
 	if err != nil {
@@ -60,11 +76,16 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 }
 
 func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd) (object, error) {
-	cmd, err := ec.lookupCmd(ast.Name)
-	if err != nil {
-		return nil, err
+	if cmd := ec.lookupInvokable(ast.Name); cmd != nil {
+		return e.evalInvokable(ctx, ec, currentStream, ast, cmd)
+	} else if macro := ec.lookupMacro(ast.Name); macro != nil {
+		return e.evalMacro(ctx, ec, currentStream, ast, macro)
 	}
 
+	return nil, errors.New("unknown command")
+}
+
+func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd, cmd invokable) (object, error) {
 	args, err := slices.MapWithError(ast.Args, func(a astCmdArg) (object, error) {
 		return e.evalArg(ctx, ec, a)
 	})
@@ -87,18 +108,30 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream strea
 	return cmd.invoke(ctx, invArgs)
 }
 
+func (e evaluator) evalMacro(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd, cmd macroable) (object, error) {
+	return cmd.invokeMacro(ctx, macroArgs{
+		eval:          e,
+		ec:            ec,
+		currentStream: currentStream,
+		ast:           ast,
+	})
+}
+
 func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (object, error) {
 	switch {
 	case n.Literal != nil:
 		return e.evalLiteral(ctx, ec, n.Literal)
+	case n.Ident != nil:
+		return strObject(*n.Ident), nil
 	case n.Var != nil:
-		v, ok := ec.getVar(*n.Var)
-		if !ok {
-			return nil, fmt.Errorf("unknown variable %s", *n.Var)
+		if v, ok := ec.getVar(*n.Var); ok {
+			return v, nil
 		}
-		return v, nil
+		return nil, nil
 	case n.Sub != nil:
 		return e.evalSub(ctx, ec, n.Sub)
+	case n.Block != nil:
+		return blockObject{block: n.Block}, nil
 	}
 	return nil, errors.New("unhandled arg type")
 }
@@ -111,8 +144,6 @@ func (e evaluator) evalLiteral(ctx context.Context, ec *evalCtx, n *astLiteral) 
 			return nil, err
 		}
 		return strObject(uq), nil
-	case n.Ident != nil:
-		return strObject(*n.Ident), nil
 	}
 	return nil, errors.New("unhandled literal type")
 }

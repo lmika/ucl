@@ -1,12 +1,9 @@
 package cmdlang
 
-import (
-	"errors"
-)
-
 type evalCtx struct {
 	parent   *evalCtx
 	commands map[string]invokable
+	macros   map[string]macroable
 	vars     map[string]object
 }
 
@@ -16,6 +13,14 @@ func (ec *evalCtx) addCmd(name string, inv invokable) {
 	}
 
 	ec.commands[name] = inv
+}
+
+func (ec *evalCtx) addMacro(name string, inv macroable) {
+	if ec.macros == nil {
+		ec.macros = make(map[string]macroable)
+	}
+
+	ec.macros[name] = inv
 }
 
 func (ec *evalCtx) setVar(name string, val object) {
@@ -39,16 +44,30 @@ func (ec *evalCtx) getVar(name string) (object, bool) {
 	return nil, false
 }
 
-func (ec *evalCtx) lookupCmd(name string) (invokable, error) {
-	for e := ec; e != nil; e = e.parent {
-		if e.commands == nil {
-			continue
-		}
-
-		if cmd, ok := e.commands[name]; ok {
-			return cmd, nil
-		}
-
+func (ec *evalCtx) lookupInvokable(name string) invokable {
+	if ec == nil {
+		return nil
 	}
-	return nil, errors.New("name " + name + " not found")
+
+	for e := ec; e != nil; e = e.parent {
+		if cmd, ok := e.commands[name]; ok {
+			return cmd
+		}
+	}
+
+	return ec.parent.lookupInvokable(name)
+}
+
+func (ec *evalCtx) lookupMacro(name string) macroable {
+	if ec == nil {
+		return nil
+	}
+
+	for e := ec; e != nil; e = e.parent {
+		if cmd, ok := e.macros[name]; ok {
+			return cmd
+		}
+	}
+
+	return ec.parent.lookupMacro(name)
 }

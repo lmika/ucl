@@ -74,6 +74,10 @@ func (s *singletonStream) String() string {
 	return s.t.String()
 }
 
+func (s *singletonStream) Truthy() bool {
+	return !s.consumed
+}
+
 func (s *singletonStream) next() (object, error) {
 	if s.consumed {
 		return nil, io.EOF
@@ -91,6 +95,10 @@ type listIterStream struct {
 
 func (s *listIterStream) String() string {
 	return fmt.Sprintf("listIterStream{list: %v}", s.list)
+}
+
+func (s *listIterStream) Truthy() bool {
+	return len(s.list) > s.cusr
 }
 
 func (s *listIterStream) next() (o object, err error) {
@@ -113,6 +121,10 @@ type mapFilterStream struct {
 
 func (ms mapFilterStream) String() string {
 	return fmt.Sprintf("mapFilterStream{in: %v}", ms.in)
+}
+
+func (ms mapFilterStream) Truthy() bool {
+	return true // ???
 }
 
 func (ms mapFilterStream) next() (object, error) {
