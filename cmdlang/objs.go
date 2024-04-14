@@ -28,9 +28,22 @@ func toGoValue(obj object) (interface{}, bool) {
 		return nil, true
 	case strObject:
 		return string(v), true
+	case proxyObject:
+		return v.p, true
 	}
 
 	return nil, false
+}
+
+func fromGoValue(v any) (object, error) {
+	switch t := v.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return strObject(t), nil
+	default:
+		return proxyObject{t}, nil
+	}
 }
 
 type macroArgs struct {
@@ -162,4 +175,17 @@ func isTruthy(obj object) bool {
 		return false
 	}
 	return obj.Truthy()
+}
+
+type proxyObject struct {
+	p interface{}
+}
+
+func (p proxyObject) String() string {
+	return fmt.Sprintf("proxyObject{%T}", p.p)
+}
+
+func (p proxyObject) Truthy() bool {
+	//TODO implement me
+	panic("implement me")
 }
