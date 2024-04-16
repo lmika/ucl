@@ -32,7 +32,7 @@ func (ca CallArgs) Bind(vars ...interface{}) error {
 
 			if argValue.Type().Kind() != reflect.Pointer {
 				continue
-			} else if argValue.Elem().Type() != poValue.Type() {
+			} else if !poValue.Type().AssignableTo(argValue.Elem().Type()) {
 				continue
 			}
 

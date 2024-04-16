@@ -2,9 +2,10 @@ package cmdlang_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/lmika/cmdlang-proto/cmdlang"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestInst_SetBuiltin(t *testing.T) {
@@ -88,4 +89,55 @@ func TestInst_SetBuiltin(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestCallArgs_Bind(t *testing.T) {
+	t.Run("bind to an interface", func(t *testing.T) {
+		ctx := context.Background()
+
+		inst := cmdlang.New()
+		inst.SetBuiltin("sa", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+			return doStringA{this: "a val"}, nil
+		})
+		inst.SetBuiltin("sb", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+			return doStringB{left: "foo", right: "bar"}, nil
+		})
+		inst.SetBuiltin("dostr", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+			var ds doStringable
+
+			if err := args.Bind(&ds); err != nil {
+				return nil, err
+			}
+
+			return ds.DoString(), nil
+		})
+
+		va, err := inst.Eval(ctx, `dostr (sa)`)
+		assert.NoError(t, err)
+		assert.Equal(t, "do string A: a val", va)
+
+		vb, err := inst.Eval(ctx, `dostr (sb)`)
+		assert.NoError(t, err)
+		assert.Equal(t, "do string B: foo bar", vb)
+	})
+}
+
+type doStringable interface {
+	DoString() string
+}
+
+type doStringA struct {
+	this string
+}
+
+func (da doStringA) DoString() string {
+	return "do string A: " + da.this
+}
+
+type doStringB struct {
+	left, right string
+}
+
+func (da doStringB) DoString() string {
+	return "do string B: " + da.left + " " + da.right
 }
