@@ -12,6 +12,26 @@ type object interface {
 	Truthy() bool
 }
 
+type listObject []object
+
+func (s listObject) String() string {
+	return fmt.Sprintf("%v", []object(s))
+}
+
+func (s listObject) Truthy() bool {
+	return len(s) > 0
+}
+
+type hashObject map[string]object
+
+func (s hashObject) String() string {
+	return fmt.Sprintf("%v", map[string]object(s))
+}
+
+func (s hashObject) Truthy() bool {
+	return len(s) > 0
+}
+
 type strObject string
 
 func (s strObject) String() string {
@@ -28,6 +48,26 @@ func toGoValue(obj object) (interface{}, bool) {
 		return nil, true
 	case strObject:
 		return string(v), true
+	case listObject:
+		xs := make([]interface{}, 0, len(v))
+		for _, va := range v {
+			x, ok := toGoValue(va)
+			if !ok {
+				continue
+			}
+			xs = append(xs, x)
+		}
+		return xs, true
+	case hashObject:
+		xs := make(map[string]interface{})
+		for k, va := range v {
+			x, ok := toGoValue(va)
+			if !ok {
+				continue
+			}
+			xs[k] = x
+		}
+		return xs, true
 	case proxyObject:
 		return v.p, true
 	}

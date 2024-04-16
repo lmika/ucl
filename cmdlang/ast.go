@@ -11,16 +11,35 @@ type astLiteral struct {
 	Str *string `parser:"@String"`
 }
 
+type astHashKey struct {
+	Literal *astLiteral  `parser:"@@"`
+	Ident   *string      `parser:"| @Ident"`
+	Var     *string      `parser:"| DOLLAR @Ident"`
+	Sub     *astPipeline `parser:"| LP @@ RP"`
+}
+
+type astElementPair struct {
+	Left  astCmdArg  `parser:"@@"`
+	Right *astCmdArg `parser:"( COLON @@ )? NL?"`
+}
+
+type astListOrHash struct {
+	EmptyList bool              `parser:"@(LS RS)"`
+	EmptyHash bool              `parser:"| @(LS COLON RS)"`
+	Elements  []*astElementPair `parser:"| LS NL? @@+ @@* RS"`
+}
+
 type astBlock struct {
 	Statements []*astStatements `parser:"LC NL? @@ NL? RC"`
 }
 
 type astCmdArg struct {
-	Literal *astLiteral  `parser:"@@"`
-	Ident   *string      `parser:"| @Ident"`
-	Var     *string      `parser:"| DOLLAR @Ident"`
-	Sub     *astPipeline `parser:"| LP @@ RP"`
-	Block   *astBlock    `parser:"| @@"`
+	Literal    *astLiteral    `parser:"@@"`
+	Ident      *string        `parser:"| @Ident"`
+	Var        *string        `parser:"| DOLLAR @Ident"`
+	Sub        *astPipeline   `parser:"| LP @@ RP"`
+	ListOrHash *astListOrHash `parser:"| @@"`
+	Block      *astBlock      `parser:"| @@"`
 }
 
 type astCmd struct {
@@ -47,8 +66,11 @@ var scanner = lexer.MustStateful(lexer.Rules{
 		{"Whitespace", `[ \t]+`, nil},
 		{"String", `"(\\"|[^"])*"`, nil},
 		{"DOLLAR", `\$`, nil},
+		{"COLON", `\:`, nil},
 		{"LP", `\(`, nil},
 		{"RP", `\)`, nil},
+		{"LS", `\[`, nil},
+		{"RS", `\]`, nil},
 		{"LC", `\{`, nil},
 		{"RC", `\}`, nil},
 		{"NL", `[;\n][; \n\t]*`, nil},

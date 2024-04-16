@@ -13,7 +13,7 @@ func TestInst_Eval(t *testing.T) {
 	tests := []struct {
 		desc string
 		expr string
-		want string
+		want any
 	}{
 		{desc: "simple string", expr: `firstarg "hello"`, want: "hello"},
 		{desc: "simple ident", expr: `firstarg a-test`, want: "a-test"},
@@ -39,6 +39,23 @@ func TestInst_Eval(t *testing.T) {
 		{desc: "multi 1", expr: `firstarg "hello" ; firstarg "world"`, want: "world"},
 		{desc: "multi 2", expr: `pipe "hello" | toUpper ; firstarg "world"`, want: "world"}, // TODO: assert for leaks
 		{desc: "multi 3", expr: `set new "this is new" ; firstarg $new`, want: "this is new"},
+
+		// Lists
+		{desc: "list 1", expr: `firstarg ["1" "2" "3"]`, want: []any{"1", "2", "3"}},
+		{desc: "list 2", expr: `set one "one" ; firstarg [$one (pipe "two" | toUpper) "three"]`, want: []any{"one", "TWO", "three"}},
+		{desc: "list 3", expr: `firstarg []`, want: []any{}},
+
+		// Maps
+		{desc: "map 1", expr: `firstarg [one:"1" two:"2" three:"3"]`, want: map[string]any{"one": "1", "two": "2", "three": "3"}},
+		{desc: "map 2", expr: `firstarg ["one":"1" "two":"2" "three":"3"]`, want: map[string]any{"one": "1", "two": "2", "three": "3"}},
+		{desc: "map 3", expr: `
+			set one "one" ; set n1 "1"
+			firstarg [
+				$one:$n1
+				(firstarg "two" | toUpper):(firstarg "2" | toUpper)
+				three:"3"
+			]`, want: map[string]any{"one": "1", "TWO": "2", "three": "3"}},
+		{desc: "map 4", expr: `firstarg [:]`, want: map[string]any{}},
 	}
 
 	for _, tt := range tests {

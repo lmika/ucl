@@ -130,10 +130,55 @@ func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (objec
 		return nil, nil
 	case n.Sub != nil:
 		return e.evalSub(ctx, ec, n.Sub)
+	case n.ListOrHash != nil:
+		return e.evalListOrHash(ctx, ec, n.ListOrHash)
 	case n.Block != nil:
 		return blockObject{block: n.Block}, nil
 	}
 	return nil, errors.New("unhandled arg type")
+}
+
+func (e evaluator) evalListOrHash(ctx context.Context, ec *evalCtx, loh *astListOrHash) (object, error) {
+	if loh.EmptyList {
+		return listObject{}, nil
+	} else if loh.EmptyHash {
+		return hashObject{}, nil
+	}
+
+	if firstIsHash := loh.Elements[0].Right != nil; firstIsHash {
+		h := hashObject{}
+		for _, el := range loh.Elements {
+			if el.Right == nil {
+				return nil, errors.New("miss-match of lists and hash")
+			}
+
+			n, err := e.evalArg(ctx, ec, el.Left)
+			if err != nil {
+				return nil, err
+			}
+
+			v, err := e.evalArg(ctx, ec, *el.Right)
+			if err != nil {
+				return nil, err
+			}
+
+			h[n.String()] = v
+		}
+		return h, nil
+	}
+
+	l := listObject{}
+	for _, el := range loh.Elements {
+		if el.Right != nil {
+			return nil, errors.New("miss-match of lists and hash")
+		}
+		v, err := e.evalArg(ctx, ec, el.Left)
+		if err != nil {
+			return nil, err
+		}
+		l = append(l, v)
+	}
+	return l, nil
 }
 
 func (e evaluator) evalLiteral(ctx context.Context, ec *evalCtx, n *astLiteral) (object, error) {
