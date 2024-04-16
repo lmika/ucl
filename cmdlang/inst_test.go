@@ -3,9 +3,10 @@ package cmdlang_test
 import (
 	"bytes"
 	"context"
+	"testing"
+
 	"github.com/lmika/cmdlang-proto/cmdlang"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestInst_Eval(t *testing.T) {
@@ -15,6 +16,7 @@ func TestInst_Eval(t *testing.T) {
 		want string
 	}{
 		{desc: "simple string", expr: `firstarg "hello"`, want: "hello"},
+		{desc: "simple ident", expr: `firstarg a-test`, want: "a-test"},
 
 		// Sub-expressions
 		{desc: "sub expression 1", expr: `firstarg (sjoin "hello")`, want: "hello"},

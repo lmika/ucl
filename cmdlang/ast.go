@@ -1,9 +1,10 @@
 package cmdlang
 
 import (
+	"io"
+
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"io"
 )
 
 type astLiteral struct {
@@ -52,7 +53,7 @@ var scanner = lexer.MustStateful(lexer.Rules{
 		{"RC", `\}`, nil},
 		{"NL", `[;\n][; \n\t]*`, nil},
 		{"PIPE", `\|`, nil},
-		{"Ident", `\w+`, nil},
+		{"Ident", `[\w-]+`, nil},
 	},
 })
 var parser = participle.MustBuild[astScript](participle.Lexer(scanner),
