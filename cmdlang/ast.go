@@ -30,7 +30,8 @@ type astListOrHash struct {
 }
 
 type astBlock struct {
-	Statements []*astStatements `parser:"LC NL? @@ NL? RC"`
+	Names      []string         `parser:"LC NL? (PIPE @Ident+ PIPE NL?)?"`
+	Statements []*astStatements `parser:"@@ NL? RC"`
 }
 
 type astCmdArg struct {

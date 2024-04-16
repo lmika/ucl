@@ -7,6 +7,10 @@ type evalCtx struct {
 	vars     map[string]object
 }
 
+func (ec *evalCtx) fork() *evalCtx {
+	return &evalCtx{parent: ec}
+}
+
 func (ec *evalCtx) addCmd(name string, inv invokable) {
 	if ec.commands == nil {
 		ec.commands = make(map[string]invokable)

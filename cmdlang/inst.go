@@ -32,6 +32,7 @@ func New(opts ...InstOption) *Inst {
 	rootEC.addCmd("cat", invokableFunc(catBuiltin))
 
 	rootEC.addMacro("if", macroFunc(ifBuiltin))
+	rootEC.addMacro("foreach", macroFunc(foreachBuiltin))
 
 	//rootEC.addCmd("testTimebomb", invokableStreamFunc(errorTestBuiltin))
 

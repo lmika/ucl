@@ -172,3 +172,31 @@ func TestBuiltins_If(t *testing.T) {
 		})
 	}
 }
+
+func TestBuiltins_ForEach(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "iterate over list", expr: `
+			foreach ["1" "2" "3"] { |v|
+				echo $v
+			}`, want: "1\n2\n3\n(nil)\n"},
+		{desc: "iterate over map", expr: `
+			foreach [a:"1"] { |k v| echo $k "=" $v }`, want: "a=1\n(nil)\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			err := inst.EvalAndDisplay(ctx, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}

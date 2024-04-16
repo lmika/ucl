@@ -123,7 +123,7 @@ func (ma macroArgs) evalArg(ctx context.Context, n int) (object, error) {
 	return ma.eval.evalArg(ctx, ma.ec, ma.ast.Args[ma.argShift+n])
 }
 
-func (ma macroArgs) evalBlock(ctx context.Context, n int) (object, error) {
+func (ma macroArgs) evalBlock(ctx context.Context, n int, args []object, pushScope bool) (object, error) {
 	obj, err := ma.evalArg(ctx, n)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,17 @@ func (ma macroArgs) evalBlock(ctx context.Context, n int) (object, error) {
 		return nil, errors.New("not a block object")
 	}
 
-	return ma.eval.evalBlock(ctx, ma.ec, block.block)
+	ec := ma.ec
+	if pushScope {
+		ec = ec.fork()
+	}
+	for i, n := range block.block.Names {
+		if i < len(args) {
+			ec.setVar(n, args[i])
+		}
+	}
+
+	return ma.eval.evalBlock(ctx, ec, block.block)
 }
 
 type invocationArgs struct {

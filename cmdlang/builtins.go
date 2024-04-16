@@ -123,7 +123,7 @@ func ifBuiltin(ctx context.Context, args macroArgs) (object, error) {
 	}
 
 	if guard, err := args.evalArg(ctx, 0); err == nil && isTruthy(guard) {
-		return args.evalBlock(ctx, 1)
+		return args.evalBlock(ctx, 1, nil, false)
 	} else if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func ifBuiltin(ctx context.Context, args macroArgs) (object, error) {
 		}
 
 		if guard, err := args.evalArg(ctx, 0); err == nil && isTruthy(guard) {
-			return args.evalBlock(ctx, 1)
+			return args.evalBlock(ctx, 1, nil, false)
 		} else if err != nil {
 			return nil, err
 		}
@@ -146,11 +146,44 @@ func ifBuiltin(ctx context.Context, args macroArgs) (object, error) {
 	}
 
 	if args.identIs(ctx, 0, "else") && args.nargs() > 1 {
-		return args.evalBlock(ctx, 1)
+		return args.evalBlock(ctx, 1, nil, false)
 	} else if args.nargs() == 0 {
 		// no elif or else
 		return nil, nil
 	}
 
 	return nil, errors.New("malformed if-elif-else")
+}
+
+func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
+	if args.nargs() < 2 {
+		return nil, errors.New("need at least 2 arguments")
+	}
+
+	items, err := args.evalArg(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var last object
+
+	switch t := items.(type) {
+	case listObject:
+		for _, v := range t {
+			last, err = args.evalBlock(ctx, 1, []object{v}, true) // TO INCLUDE: the index
+			if err != nil {
+				return nil, err
+			}
+		}
+	case hashObject:
+		for k, v := range t {
+			last, err = args.evalBlock(ctx, 1, []object{strObject(k), v}, true)
+			if err != nil {
+				return nil, err
+			}
+		}
+		// TODO: streams
+	}
+
+	return last, nil
 }
