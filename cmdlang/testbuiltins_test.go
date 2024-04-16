@@ -183,6 +183,7 @@ func TestBuiltins_ForEach(t *testing.T) {
 			foreach ["1" "2" "3"] { |v|
 				echo $v
 			}`, want: "1\n2\n3\n(nil)\n"},
+		// TODO: hash is not sorted, so need to find a way to sort it
 		{desc: "iterate over map", expr: `
 			foreach [a:"1"] { |k v| echo $k "=" $v }`, want: "a=1\n(nil)\n"},
 	}
