@@ -2,6 +2,7 @@ package cmdlang_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/lmika/cmdlang-proto/cmdlang"
@@ -24,6 +25,48 @@ func TestInst_SetBuiltin(t *testing.T) {
 		res, err := inst.Eval(context.Background(), `add2 "Hello, " "World"`)
 		assert.NoError(t, err)
 		assert.Equal(t, "Hello, World", res)
+	})
+
+	t.Run("simple builtin with optional switches and strings", func(t *testing.T) {
+		inst := cmdlang.New()
+		inst.SetBuiltin("add2", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+			var x, y, sep string
+
+			if err := args.BindSwitch("sep", &sep); err != nil {
+				return nil, err
+			}
+			if err := args.BindSwitch("left", &x); err != nil {
+				return nil, err
+			}
+			if err := args.BindSwitch("right", &y); err != nil {
+				return nil, err
+			}
+
+			v := x + sep + y
+			if args.HasSwitch("upcase") {
+				v = strings.ToUpper(v)
+			}
+
+			return v, nil
+		})
+
+		tests := []struct {
+			descr string
+			expr  string
+			want  string
+		}{
+			{"plain eval", `add2 -sep ", " -right "world" -left "Hello"`, "Hello, world"},
+			{"swap 1", `add2 -right "right" -left "left" -sep ":"`, "left:right"},
+			{"swap 2", `add2 -left "left" -sep ":" -right "right" -upcase`, "LEFT:RIGHT"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.descr, func(t *testing.T) {
+				res, err := inst.Eval(context.Background(), tt.expr)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, res)
+			})
+		}
 	})
 
 	t.Run("builtin return proxy object", func(t *testing.T) {

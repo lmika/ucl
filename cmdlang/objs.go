@@ -14,6 +14,10 @@ type object interface {
 
 type listObject []object
 
+func (lo *listObject) Append(o object) {
+	*lo = append(*lo, o)
+}
+
 func (s listObject) String() string {
 	return fmt.Sprintf("%v", []object(s))
 }
@@ -152,6 +156,7 @@ type invocationArgs struct {
 	ec            *evalCtx
 	currentStream stream
 	args          []object
+	kwargs        map[string]*listObject
 }
 
 func (ia invocationArgs) expectArgn(x int) error {

@@ -16,30 +16,33 @@ func (ca CallArgs) Bind(vars ...interface{}) error {
 	}
 
 	for i, v := range vars {
-		switch t := v.(type) {
-		case *string:
-			tv, err := ca.args.stringArg(i)
-			if err != nil {
-				return err
-			}
-			*t = tv
-		}
-
-		// Check for proxy object
-		if po, ok := ca.args.args[i].(proxyObject); ok {
-			poValue := reflect.ValueOf(po.p)
-			argValue := reflect.ValueOf(v)
-
-			if argValue.Type().Kind() != reflect.Pointer {
-				continue
-			} else if !poValue.Type().AssignableTo(argValue.Elem().Type()) {
-				continue
-			}
-
-			argValue.Elem().Set(poValue)
+		if err := bindArg(v, ca.args.args[i]); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func (ca CallArgs) HasSwitch(name string) bool {
+	if ca.args.kwargs == nil {
+		return false
+	}
+
+	_, ok := ca.args.kwargs[name]
+	return ok
+}
+
+func (ca CallArgs) BindSwitch(name string, val interface{}) error {
+	if ca.args.kwargs == nil {
+		return nil
+	}
+
+	vars, ok := ca.args.kwargs[name]
+	if !ok || len(*vars) != 1 {
+		return nil
+	}
+
+	return bindArg(val, (*vars)[0])
 }
 
 func (inst *Inst) SetBuiltin(name string, fn func(ctx context.Context, args CallArgs) (any, error)) {
@@ -57,4 +60,26 @@ func (u userBuiltin) invoke(ctx context.Context, args invocationArgs) (object, e
 	}
 
 	return fromGoValue(v)
+}
+
+func bindArg(v interface{}, arg object) error {
+	switch t := v.(type) {
+	case *string:
+		*t = arg.String()
+	}
+
+	// Check for proxy object
+	if po, ok := arg.(proxyObject); ok {
+		poValue := reflect.ValueOf(po.p)
+		argValue := reflect.ValueOf(v)
+
+		if argValue.Type().Kind() != reflect.Pointer {
+			return nil
+		} else if !poValue.Type().AssignableTo(argValue.Elem().Type()) {
+			return nil
+		}
+
+		argValue.Elem().Set(poValue)
+	}
+	return nil
 }

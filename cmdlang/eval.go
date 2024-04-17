@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/lmika/gopkgs/fp/slices"
 	"strconv"
 	"strings"
 )
@@ -86,14 +85,32 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream strea
 }
 
 func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd, cmd invokable) (object, error) {
-	args, err := slices.MapWithError(ast.Args, func(a astCmdArg) (object, error) {
-		return e.evalArg(ctx, ec, a)
-	})
-	if err != nil {
-		return nil, err
+	var (
+		pargs   listObject
+		kwargs  map[string]*listObject
+		argsPtr *listObject
+	)
+
+	argsPtr = &pargs
+	for _, arg := range ast.Args {
+		if ident := arg.Ident; ident != nil && (*ident)[0] == '-' {
+			// Arg switch
+			if kwargs == nil {
+				kwargs = make(map[string]*listObject)
+			}
+
+			argsPtr = &listObject{}
+			kwargs[(*ident)[1:]] = argsPtr
+		} else {
+			ae, err := e.evalArg(ctx, ec, arg)
+			if err != nil {
+				return nil, err
+			}
+			argsPtr.Append(ae)
+		}
 	}
 
-	invArgs := invocationArgs{ec: ec, inst: e.inst, args: args, currentStream: currentStream}
+	invArgs := invocationArgs{ec: ec, inst: e.inst, args: pargs, kwargs: kwargs, currentStream: currentStream}
 
 	if currentStream != nil {
 		if si, ok := cmd.(streamInvokable); ok {
