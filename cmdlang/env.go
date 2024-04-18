@@ -1,6 +1,7 @@
 package cmdlang
 
 type evalCtx struct {
+	root     *evalCtx
 	parent   *evalCtx
 	commands map[string]invokable
 	macros   map[string]macroable
@@ -8,7 +9,7 @@ type evalCtx struct {
 }
 
 func (ec *evalCtx) fork() *evalCtx {
-	return &evalCtx{parent: ec}
+	return &evalCtx{parent: ec, root: ec.root}
 }
 
 func (ec *evalCtx) addCmd(name string, inv invokable) {

@@ -75,6 +75,19 @@ func catBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return &fileLinesStream{filename: filename}, nil
 }
 
+func callBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(1); err != nil {
+		return nil, err
+	}
+
+	inv, ok := args.args[0].(invokable)
+	if !ok {
+		return nil, errors.New("expected invokable")
+	}
+
+	return inv.invoke(ctx, args.shift(1))
+}
+
 type fileLinesStream struct {
 	filename string
 	f        *os.File
@@ -186,4 +199,62 @@ func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
 	}
 
 	return last, nil
+}
+
+func procBuiltin(ctx context.Context, args macroArgs) (object, error) {
+	if args.nargs() < 1 {
+		return nil, errors.New("need at least one arguments")
+	}
+
+	var procName string
+	if args.nargs() == 2 {
+		name, ok := args.shiftIdent(ctx)
+		if !ok {
+			return nil, errors.New("malformed procedure: expected identifier as first argument")
+		}
+		procName = name
+	}
+
+	block, err := args.evalArg(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	blockObj, ok := block.(blockObject)
+	if !ok {
+		return nil, fmt.Errorf("malformed procedure: expected block object, was %v", block.String())
+	}
+
+	obj := procObject{args.eval, args.ec, blockObj.block}
+	if procName != "" {
+		args.ec.addCmd(procName, obj)
+	}
+	return obj, nil
+}
+
+type procObject struct {
+	eval  evaluator
+	ec    *evalCtx
+	block *astBlock
+}
+
+func (b procObject) String() string {
+	return "(proc)"
+}
+
+func (b procObject) Truthy() bool {
+	return true
+}
+
+func (b procObject) invoke(ctx context.Context, args invocationArgs) (object, error) {
+	newEc := b.ec.fork()
+
+	for i, name := range b.block.Names {
+		if i < len(args.args) {
+			newEc.setVar(name, args.args[i])
+		} else {
+			newEc.setVar(name, nil)
+		}
+	}
+
+	return b.eval.evalBlock(ctx, newEc, b.block)
 }

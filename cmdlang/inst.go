@@ -24,15 +24,18 @@ func WithOut(out io.Writer) InstOption {
 }
 
 func New(opts ...InstOption) *Inst {
-	rootEC := evalCtx{}
+	rootEC := &evalCtx{}
+	rootEC.root = rootEC
 
 	rootEC.addCmd("echo", invokableFunc(echoBuiltin))
 	rootEC.addCmd("set", invokableFunc(setBuiltin))
 	rootEC.addCmd("toUpper", invokableStreamFunc(toUpperBuiltin))
 	rootEC.addCmd("cat", invokableFunc(catBuiltin))
+	rootEC.addCmd("call", invokableFunc(callBuiltin))
 
 	rootEC.addMacro("if", macroFunc(ifBuiltin))
 	rootEC.addMacro("foreach", macroFunc(foreachBuiltin))
+	rootEC.addMacro("proc", macroFunc(procBuiltin))
 
 	//rootEC.addCmd("testTimebomb", invokableStreamFunc(errorTestBuiltin))
 
@@ -40,7 +43,7 @@ func New(opts ...InstOption) *Inst {
 
 	inst := &Inst{
 		out:    os.Stdout,
-		rootEC: &rootEC,
+		rootEC: rootEC,
 	}
 
 	for _, opt := range opts {

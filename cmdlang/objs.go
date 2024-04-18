@@ -119,6 +119,19 @@ func (ma macroArgs) identIs(ctx context.Context, n int, expectedIdent string) bo
 	return *lit == expectedIdent
 }
 
+func (ma *macroArgs) shiftIdent(ctx context.Context) (string, bool) {
+	if ma.argShift >= len(ma.ast.Args) {
+		return "", false
+	}
+
+	lit := ma.ast.Args[ma.argShift].Ident
+	if lit != nil {
+		ma.argShift += 1
+		return *lit, true
+	}
+	return "", false
+}
+
 func (ma macroArgs) evalArg(ctx context.Context, n int) (object, error) {
 	if n >= len(ma.ast.Args[ma.argShift:]) {
 		return nil, errors.New("not enough arguments") // FIX
@@ -175,6 +188,16 @@ func (ia invocationArgs) stringArg(i int) (string, error) {
 		return "", errors.New("expected a string arg")
 	}
 	return s.String(), nil
+}
+
+func (ia invocationArgs) shift(i int) invocationArgs {
+	return invocationArgs{
+		inst:          ia.inst,
+		ec:            ia.ec,
+		currentStream: ia.currentStream,
+		args:          ia.args[i:],
+		kwargs:        ia.kwargs,
+	}
 }
 
 // invokable is an object that can be executed as a command
