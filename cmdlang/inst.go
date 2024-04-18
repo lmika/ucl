@@ -30,8 +30,12 @@ func New(opts ...InstOption) *Inst {
 	rootEC.addCmd("echo", invokableFunc(echoBuiltin))
 	rootEC.addCmd("set", invokableFunc(setBuiltin))
 	rootEC.addCmd("toUpper", invokableStreamFunc(toUpperBuiltin))
-	rootEC.addCmd("cat", invokableFunc(catBuiltin))
+	//rootEC.addCmd("cat", invokableFunc(catBuiltin))
 	rootEC.addCmd("call", invokableFunc(callBuiltin))
+
+	rootEC.addCmd("map", invokableStreamFunc(mapBuiltin))
+
+	rootEC.addCmd("cat", invokableFunc(concatBuiltin))
 
 	rootEC.addMacro("if", macroFunc(ifBuiltin))
 	rootEC.addMacro("foreach", macroFunc(foreachBuiltin))

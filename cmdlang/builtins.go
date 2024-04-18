@@ -52,14 +52,24 @@ func toUpperBuiltin(ctx context.Context, inStream stream, args invocationArgs) (
 	// Handle args
 	return mapFilterStream{
 		in: inStream,
-		mapFn: func(x object) (object, bool) {
+		mapFn: func(x object) (object, bool, error) {
 			s, ok := x.(strObject)
 			if !ok {
-				return nil, false
+				return nil, false, nil
 			}
-			return strObject(strings.ToUpper(string(s))), true
+			return strObject(strings.ToUpper(string(s))), true, nil
 		},
 	}, nil
+}
+
+func concatBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	var sb strings.Builder
+
+	for _, a := range args.args {
+		sb.WriteString(a.String())
+	}
+
+	return strObject(sb.String()), nil
 }
 
 func catBuiltin(ctx context.Context, args invocationArgs) (object, error) {
@@ -86,6 +96,30 @@ func callBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	}
 
 	return inv.invoke(ctx, args.shift(1))
+}
+
+func mapBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
+	args, strm, err := args.streamableSource(inStream)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := args.expectArgn(1); err != nil {
+		return nil, err
+	}
+
+	inv, ok := args.args[0].(invokable)
+	if !ok {
+		return nil, errors.New("expected invokable")
+	}
+
+	return mapFilterStream{
+		in: strm,
+		mapFn: func(x object) (object, bool, error) {
+			y, err := inv.invoke(ctx, args.fork(nil, []object{x}))
+			return y, true, err
+		},
+	}, nil
 }
 
 type fileLinesStream struct {

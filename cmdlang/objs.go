@@ -172,6 +172,25 @@ type invocationArgs struct {
 	kwargs        map[string]*listObject
 }
 
+// streamableSource takes a stream.  If the stream is set, the inStream and invocation arguments are consumed as is.
+// If not, then the first argument is consumed and returned as a stream.
+func (ia invocationArgs) streamableSource(inStream stream) (invocationArgs, stream, error) {
+	if inStream != nil {
+		return ia, inStream, nil
+	}
+
+	if len(ia.args) < 1 {
+		return ia, nil, errors.New("expected at least 1 argument")
+	}
+
+	switch v := ia.args[0].(type) {
+	case listObject:
+		return ia.shift(1), &listIterStream{list: v}, nil
+	}
+
+	return ia, nil, errors.New("expected arg 0 to be streamable")
+}
+
 func (ia invocationArgs) expectArgn(x int) error {
 	if len(ia.args) < x {
 		return errors.New("expected at least " + strconv.Itoa(x) + " args")
@@ -188,6 +207,16 @@ func (ia invocationArgs) stringArg(i int) (string, error) {
 		return "", errors.New("expected a string arg")
 	}
 	return s.String(), nil
+}
+
+func (ia invocationArgs) fork(currentStr stream, args []object) invocationArgs {
+	return invocationArgs{
+		inst:          ia.inst,
+		ec:            ia.ec,
+		currentStream: currentStr,
+		args:          args,
+		kwargs:        make(map[string]*listObject),
+	}
 }
 
 func (ia invocationArgs) shift(i int) invocationArgs {

@@ -3,9 +3,7 @@ package cmdlang
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
-	"strings"
 )
 
 type evaluator struct {
@@ -218,17 +216,15 @@ func (e evaluator) evalSub(ctx context.Context, ec *evalCtx, n *astPipeline) (ob
 
 	switch v := pipelineRes.(type) {
 	case stream:
-		// TODO: use proper lists here, not a string join
-		sb := strings.Builder{}
+		list := listObject{}
 		if err := forEach(v, func(o object, _ int) error {
-			// TODO: use o.String()
-			sb.WriteString(fmt.Sprint(o))
+			list = append(list, o)
 			return nil
 		}); err != nil {
 			return nil, err
 		}
 
-		return strObject(sb.String()), nil
+		return list, nil
 	}
 	return pipelineRes, nil
 }

@@ -116,7 +116,7 @@ func (s *listIterStream) close() error { return nil }
 
 type mapFilterStream struct {
 	in    stream
-	mapFn func(x object) (object, bool)
+	mapFn func(x object) (object, bool, error)
 }
 
 func (ms mapFilterStream) String() string {
@@ -134,8 +134,10 @@ func (ms mapFilterStream) next() (object, error) {
 			return nil, err
 		}
 
-		t, ok := ms.mapFn(u)
-		if ok {
+		t, ok, err := ms.mapFn(u)
+		if err != nil {
+			return nil, err
+		} else if ok {
 			return t, nil
 		}
 	}
