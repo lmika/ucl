@@ -3,7 +3,6 @@ package cmdlang
 import (
 	"context"
 	"errors"
-	"log"
 	"strconv"
 )
 
@@ -77,7 +76,6 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream strea
 	switch {
 	case ast.Name.Ident != nil:
 		name := *ast.Name.Ident
-		log.Printf("--> invoking: %v", name)
 
 		// Regular command
 		if cmd := ec.lookupInvokable(name); cmd != nil {

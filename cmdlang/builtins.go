@@ -83,6 +83,9 @@ func concatBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	var sb strings.Builder
 
 	for _, a := range args.args {
+		if a == nil {
+			continue
+		}
 		sb.WriteString(a.String())
 	}
 
