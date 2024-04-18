@@ -34,17 +34,21 @@ type astBlock struct {
 	Statements []*astStatements `parser:"@@ NL? RC"`
 }
 
+type astMaybeSub struct {
+	Sub *astPipeline `parser:"@@?"`
+}
+
 type astCmdArg struct {
 	Literal    *astLiteral    `parser:"@@"`
 	Ident      *string        `parser:"| @Ident"`
 	Var        *string        `parser:"| DOLLAR @Ident"`
-	Sub        *astPipeline   `parser:"| LP @@ RP"`
+	MaybeSub   *astMaybeSub   `parser:"| LP @@ RP"`
 	ListOrHash *astListOrHash `parser:"| @@"`
 	Block      *astBlock      `parser:"| @@"`
 }
 
 type astCmd struct {
-	Name string      `parser:"@Ident"`
+	Name astCmdArg   `parser:"@@"`
 	Args []astCmdArg `parser:"@@*"`
 }
 

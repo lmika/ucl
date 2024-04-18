@@ -73,13 +73,37 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 }
 
 func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd) (object, error) {
-	if cmd := ec.lookupInvokable(ast.Name); cmd != nil {
-		return e.evalInvokable(ctx, ec, currentStream, ast, cmd)
-	} else if macro := ec.lookupMacro(ast.Name); macro != nil {
-		return e.evalMacro(ctx, ec, currentStream, ast, macro)
+	switch {
+	case ast.Name.Ident != nil:
+		name := *ast.Name.Ident
+
+		// Regular command
+		if cmd := ec.lookupInvokable(name); cmd != nil {
+			return e.evalInvokable(ctx, ec, currentStream, ast, cmd)
+		} else if macro := ec.lookupMacro(name); macro != nil {
+			return e.evalMacro(ctx, ec, currentStream, ast, macro)
+		} else {
+			return nil, errors.New("unknown command")
+		}
+	case len(ast.Args) > 0:
+		nameElem, err := e.evalArg(ctx, ec, ast.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		inv, ok := nameElem.(invokable)
+		if !ok {
+			return nil, errors.New("command is not invokable")
+		}
+
+		return e.evalInvokable(ctx, ec, currentStream, ast, inv)
 	}
 
-	return nil, errors.New("unknown command")
+	nameElem, err := e.evalArg(ctx, ec, ast.Name)
+	if err != nil {
+		return nil, err
+	}
+	return nameElem, nil
 }
 
 func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd, cmd invokable) (object, error) {
@@ -143,8 +167,12 @@ func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (objec
 			return v, nil
 		}
 		return nil, nil
-	case n.Sub != nil:
-		return e.evalSub(ctx, ec, n.Sub)
+	case n.MaybeSub != nil:
+		sub := n.MaybeSub.Sub
+		if sub == nil {
+			return nil, nil
+		}
+		return e.evalSub(ctx, ec, sub)
 	case n.ListOrHash != nil:
 		return e.evalListOrHash(ctx, ec, n.ListOrHash)
 	case n.Block != nil:

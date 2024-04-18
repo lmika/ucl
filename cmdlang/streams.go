@@ -47,9 +47,13 @@ func forEach(s stream, f func(object, int) error) (err error) {
 // asStream converts an object to a stream.  If t is already a stream, it's returned as is.
 // Otherwise, a singleton stream is returned.
 func asStream(v object) stream {
-	if s, ok := v.(stream); ok {
+	switch s := v.(type) {
+	case stream:
 		return s
+	case listObject:
+		return &listIterStream{list: s}
 	}
+
 	return &singletonStream{t: v}
 }
 
