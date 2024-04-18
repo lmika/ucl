@@ -8,24 +8,30 @@ type evalCtx struct {
 	vars     map[string]object
 }
 
+func (ec *evalCtx) forkAndIsolate() *evalCtx {
+	newEc := &evalCtx{parent: ec}
+	newEc.root = newEc
+	return newEc
+}
+
 func (ec *evalCtx) fork() *evalCtx {
 	return &evalCtx{parent: ec, root: ec.root}
 }
 
 func (ec *evalCtx) addCmd(name string, inv invokable) {
-	if ec.commands == nil {
-		ec.commands = make(map[string]invokable)
+	if ec.root.commands == nil {
+		ec.root.commands = make(map[string]invokable)
 	}
 
-	ec.commands[name] = inv
+	ec.root.commands[name] = inv
 }
 
 func (ec *evalCtx) addMacro(name string, inv macroable) {
-	if ec.macros == nil {
-		ec.macros = make(map[string]macroable)
+	if ec.root.macros == nil {
+		ec.root.macros = make(map[string]macroable)
 	}
 
-	ec.macros[name] = inv
+	ec.root.macros[name] = inv
 }
 
 func (ec *evalCtx) setVar(name string, val object) {

@@ -42,7 +42,7 @@ func TestInst_Eval(t *testing.T) {
 
 		// Lists
 		{desc: "list 1", expr: `firstarg ["1" "2" "3"]`, want: []any{"1", "2", "3"}},
-		{desc: "list 2", expr: `set one "one" ; firstarg [$one (pipe "two" | toUpper) "three"]`, want: []any{"one", "TWO", "three"}},
+		{desc: "list 2", expr: `set one "one" ; firstarg [$one (pipe "two" | toUpper | head) "three"]`, want: []any{"one", "TWO", "three"}},
 		{desc: "list 3", expr: `firstarg []`, want: []any{}},
 
 		// Maps
@@ -52,7 +52,7 @@ func TestInst_Eval(t *testing.T) {
 			set one "one" ; set n1 "1"
 			firstarg [
 				$one:$n1
-				(firstarg "two" | toUpper):(firstarg "2" | toUpper)
+				(firstarg "two" | toUpper | head):(firstarg "2" | toUpper | head)
 				three:"3"
 			]`, want: map[string]any{"one": "1", "TWO": "2", "three": "3"}},
 		{desc: "map 4", expr: `firstarg [:]`, want: map[string]any{}},

@@ -3,6 +3,7 @@ package cmdlang
 import (
 	"context"
 	"errors"
+	"log"
 	"strconv"
 )
 
@@ -76,6 +77,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream strea
 	switch {
 	case ast.Name.Ident != nil:
 		name := *ast.Name.Ident
+		log.Printf("--> invoking: %v", name)
 
 		// Regular command
 		if cmd := ec.lookupInvokable(name); cmd != nil {
@@ -83,7 +85,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream strea
 		} else if macro := ec.lookupMacro(name); macro != nil {
 			return e.evalMacro(ctx, ec, currentStream, ast, macro)
 		} else {
-			return nil, errors.New("unknown command")
+			return nil, errors.New("unknown command: " + name)
 		}
 	case len(ast.Args) > 0:
 		nameElem, err := e.evalArg(ctx, ec, ast.Name)

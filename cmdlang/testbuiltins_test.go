@@ -201,3 +201,125 @@ func TestBuiltins_ForEach(t *testing.T) {
 		})
 	}
 }
+
+func TestBuiltins_Procs(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "simple procs", expr: `
+			proc greet {
+				echo "Hello, world"
+			}
+
+			greet
+			greet`, want: "Hello, world\nHello, world\n(nil)\n"},
+		{desc: "multiple procs", expr: `
+			proc greet { |what|
+				echo "Hello, " $what
+			}
+			proc greetWorld { greet "world" }
+			proc greetMoon { greet "moon" }
+			proc greetTheThing { |what| greet (cat "the " $what) }
+
+			greetWorld
+			greetMoon
+			greetTheThing "sun"
+			`, want: "Hello, world\nHello, moon\nHello, the sun\n(nil)\n"},
+		{desc: "recursive procs", expr: `
+			proc four4 { |xs|
+				if (eq $xs "xxxx") {
+					$xs
+				}
+				four4 (cat $xs "x")
+			}
+
+			four4
+			`, want: "xxxx\n"},
+		{desc: "closures", expr: `
+			proc makeGreeter { |greeting|
+				proc { |what|
+					echo $greeting ", " $what
+				}
+			}
+
+			set helloGreater (makeGreeter "Hello")
+			$helloGreater "world"
+
+			set goodbye (makeGreeter "Goodbye cruel")
+			$goodbye "world"
+
+			call (makeGreeter "Quick") "call me"
+
+			`, want: "Hello, world\nGoodbye cruel, world\nQuick, call me\n(nil)\n"},
+		{desc: "modifying closed over variables", expr: `
+			proc makeSetter {
+				set bla "X"
+				proc appendToBla { |x|
+					set bla (cat $bla $x)
+				}
+			}
+			
+			set er (makeSetter)
+			call $er "xxx"
+			call $er "yyy"
+			`, want: "Xxxx\nXxxxyyy(nil)\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			err := inst.EvalAndDisplay(ctx, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}
+
+func TestBuiltins_Map(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "map list", expr: `
+			proc makeUpper { |x| $x | toUpper }
+
+			map ["a" "b" "c"] (proc { |x| makeUpper $x }) 
+			`, want: "A\nB\nC\n"},
+		{desc: "map list 2", expr: `
+			set makeUpper (proc { |x| $x | toUpper })
+
+			map ["a" "b" "c"] $makeUpper 
+			`, want: "A\nB\nC\n"},
+		{desc: "map list with stream", expr: `
+			set makeUpper (proc { |x| $x | toUpper })
+
+			["a" "b" "c"] | map $makeUpper 
+			`, want: "A\nB\nC\n"},
+		{desc: "map list with stream", expr: `
+			set makeUpper (proc { |x| $x | toUpper })
+		
+			set l (["a" "b" "c"] | map $makeUpper)
+			echo $l
+			`, want: "[A B C]\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			err := inst.EvalAndDisplay(ctx, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}

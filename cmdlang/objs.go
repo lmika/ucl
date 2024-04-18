@@ -46,6 +46,19 @@ func (s strObject) Truthy() bool {
 	return string(s) != ""
 }
 
+type boolObject bool
+
+func (b boolObject) String() string {
+	if b {
+		return "(true)"
+	}
+	return "(false))"
+}
+
+func (b boolObject) Truthy() bool {
+	return bool(b)
+}
+
 func toGoValue(obj object) (interface{}, bool) {
 	switch v := obj.(type) {
 	case nil:

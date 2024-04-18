@@ -34,7 +34,9 @@ func New(opts ...InstOption) *Inst {
 	rootEC.addCmd("call", invokableFunc(callBuiltin))
 
 	rootEC.addCmd("map", invokableStreamFunc(mapBuiltin))
+	rootEC.addCmd("head", invokableStreamFunc(firstBuiltin))
 
+	rootEC.addCmd("eq", invokableFunc(eqBuiltin))
 	rootEC.addCmd("cat", invokableFunc(concatBuiltin))
 
 	rootEC.addMacro("if", macroFunc(ifBuiltin))
@@ -86,6 +88,7 @@ func (inst *Inst) eval(ctx context.Context, expr string) (object, error) {
 
 	eval := evaluator{inst: inst}
 
+	// TODO: this should be a separate forkAndIsolate() session
 	return eval.evalScript(ctx, inst.rootEC, ast)
 }
 

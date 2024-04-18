@@ -62,6 +62,23 @@ func toUpperBuiltin(ctx context.Context, inStream stream, args invocationArgs) (
 	}, nil
 }
 
+func eqBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(2); err != nil {
+		return nil, err
+	}
+
+	l := args.args[0]
+	r := args.args[1]
+
+	switch lv := l.(type) {
+	case strObject:
+		if rv, ok := r.(strObject); ok {
+			return boolObject(lv == rv), nil
+		}
+	}
+	return boolObject(false), nil
+}
+
 func concatBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	var sb strings.Builder
 
@@ -120,6 +137,23 @@ func mapBuiltin(ctx context.Context, inStream stream, args invocationArgs) (obje
 			return y, true, err
 		},
 	}, nil
+}
+
+func firstBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
+	args, strm, err := args.streamableSource(inStream)
+	if err != nil {
+		return nil, err
+	}
+	defer strm.close()
+
+	x, err := strm.next()
+	if errors.Is(err, io.EOF) {
+		return nil, nil
+	} else if err != nil {
+		return x, nil
+	}
+
+	return x, nil
 }
 
 type fileLinesStream struct {
