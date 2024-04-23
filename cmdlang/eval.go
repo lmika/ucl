@@ -36,13 +36,6 @@ func (e evaluator) evalStatement(ctx context.Context, ec *evalCtx, n *astStateme
 	}
 
 	for _, rest := range n.Rest {
-		// Discard and close unused streams
-		if s, isStream := res.(stream); isStream {
-			if err := s.close(); err != nil {
-				return nil, err
-			}
-		}
-
 		out, err := e.evalPipeline(ctx, ec, rest)
 		if err != nil {
 			return nil, err
@@ -63,7 +56,7 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 
 	// Command is a pipeline, so build it out
 	for _, rest := range n.Rest {
-		out, err := e.evalCmd(ctx, ec, asStream(res), rest)
+		out, err := e.evalCmd(ctx, ec, res, rest)
 		if err != nil {
 			return nil, err
 		}
@@ -72,16 +65,16 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 	return res, nil
 }
 
-func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd) (object, error) {
+func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentPipe object, ast *astCmd) (object, error) {
 	switch {
 	case ast.Name.Ident != nil:
 		name := *ast.Name.Ident
 
 		// Regular command
 		if cmd := ec.lookupInvokable(name); cmd != nil {
-			return e.evalInvokable(ctx, ec, currentStream, ast, cmd)
+			return e.evalInvokable(ctx, ec, currentPipe, ast, cmd)
 		} else if macro := ec.lookupMacro(name); macro != nil {
-			return e.evalMacro(ctx, ec, currentStream, ast, macro)
+			return e.evalMacro(ctx, ec, currentPipe, ast, macro)
 		} else {
 			return nil, errors.New("unknown command: " + name)
 		}
@@ -96,7 +89,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream strea
 			return nil, errors.New("command is not invokable")
 		}
 
-		return e.evalInvokable(ctx, ec, currentStream, ast, inv)
+		return e.evalInvokable(ctx, ec, currentPipe, ast, inv)
 	}
 
 	nameElem, err := e.evalArg(ctx, ec, ast.Name)
@@ -106,7 +99,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentStream strea
 	return nameElem, nil
 }
 
-func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd, cmd invokable) (object, error) {
+func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentPipe object, ast *astCmd, cmd invokable) (object, error) {
 	var (
 		pargs   listObject
 		kwargs  map[string]*listObject
@@ -114,6 +107,9 @@ func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentStream
 	)
 
 	argsPtr = &pargs
+	if currentPipe != nil {
+		argsPtr.Append(currentPipe)
+	}
 	for _, arg := range ast.Args {
 		if ident := arg.Ident; ident != nil && (*ident)[0] == '-' {
 			// Arg switch
@@ -132,27 +128,16 @@ func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentStream
 		}
 	}
 
-	invArgs := invocationArgs{ec: ec, inst: e.inst, args: pargs, kwargs: kwargs, currentStream: currentStream}
-
-	if currentStream != nil {
-		if si, ok := cmd.(streamInvokable); ok {
-			return si.invokeWithStream(ctx, currentStream, invArgs)
-		} else {
-			if err := currentStream.close(); err != nil {
-				return nil, err
-			}
-		}
-	}
-
+	invArgs := invocationArgs{eval: e, ec: ec, inst: e.inst, args: pargs, kwargs: kwargs}
 	return cmd.invoke(ctx, invArgs)
 }
 
-func (e evaluator) evalMacro(ctx context.Context, ec *evalCtx, currentStream stream, ast *astCmd, cmd macroable) (object, error) {
+func (e evaluator) evalMacro(ctx context.Context, ec *evalCtx, pipeArg object, ast *astCmd, cmd macroable) (object, error) {
 	return cmd.invokeMacro(ctx, macroArgs{
-		eval:          e,
-		ec:            ec,
-		currentStream: currentStream,
-		ast:           ast,
+		eval:    e,
+		ec:      ec,
+		pipeArg: pipeArg,
+		ast:     ast,
 	})
 }
 
@@ -240,19 +225,6 @@ func (e evaluator) evalSub(ctx context.Context, ec *evalCtx, n *astPipeline) (ob
 	pipelineRes, err := e.evalPipeline(ctx, ec, n)
 	if err != nil {
 		return nil, err
-	}
-
-	switch v := pipelineRes.(type) {
-	case stream:
-		list := listObject{}
-		if err := forEach(v, func(o object, _ int) error {
-			list = append(list, o)
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-
-		return list, nil
 	}
 	return pipelineRes, nil
 }

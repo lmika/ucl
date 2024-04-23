@@ -29,20 +29,22 @@ func TestInst_Eval(t *testing.T) {
 		{desc: "var 3", expr: `firstarg (sjoin $bee " " $bee " " $bee)`, want: "buzz buzz buzz"},
 
 		// Pipeline
-		{desc: "pipe 1", expr: `pipe "aye" "bee" "see" | joinpipe`, want: "aye,bee,see"},
-		{desc: "pipe 2", expr: `pipe "aye" "bee" "see" | toUpper | joinpipe`, want: "AYE,BEE,SEE"},
-		{desc: "pipe 3", expr: `firstarg "normal" | toUpper | joinpipe`, want: "NORMAL"},
+		{desc: "pipe 1", expr: `list "aye" "bee" "see" | joinpipe`, want: "aye,bee,see"},
+		{desc: "pipe 2", expr: `list "aye" "bee" "see" | map { |x| toUpper $x } | joinpipe`, want: "AYE,BEE,SEE"},
+		{desc: "pipe 3", expr: `firstarg ["normal"] | map { |x| toUpper $x } | joinpipe`, want: "NORMAL"},
+		{desc: "pipe literal 1", expr: `"hello" | firstarg`, want: "hello"},
+		{desc: "pipe literal 2", expr: `["hello" "world"] | joinpipe`, want: "hello,world"},
 
-		{desc: "ignored pipe", expr: `pipe "aye" "bee" "see" | firstarg "ignore me"`, want: "ignore me"}, // TODO: check for leaks
+		{desc: "ignored pipe", expr: `(list "aye" | firstarg "ignore me") | joinpipe`, want: "aye"},
 
 		// Multi-statements
 		{desc: "multi 1", expr: `firstarg "hello" ; firstarg "world"`, want: "world"},
-		{desc: "multi 2", expr: `pipe "hello" | toUpper ; firstarg "world"`, want: "world"}, // TODO: assert for leaks
+		{desc: "multi 2", expr: `list "hello" | toUpper ; firstarg "world"`, want: "world"},
 		{desc: "multi 3", expr: `set new "this is new" ; firstarg $new`, want: "this is new"},
 
 		// Lists
 		{desc: "list 1", expr: `firstarg ["1" "2" "3"]`, want: []any{"1", "2", "3"}},
-		{desc: "list 2", expr: `set one "one" ; firstarg [$one (pipe "two" | toUpper | head) "three"]`, want: []any{"one", "TWO", "three"}},
+		{desc: "list 2", expr: `set one "one" ; firstarg [$one (list "two" | map { |x| toUpper $x } | head) "three"]`, want: []any{"one", "TWO", "three"}},
 		{desc: "list 3", expr: `firstarg []`, want: []any{}},
 
 		// Maps
@@ -52,7 +54,7 @@ func TestInst_Eval(t *testing.T) {
 			set one "one" ; set n1 "1"
 			firstarg [
 				$one:$n1
-				(firstarg "two" | toUpper | head):(firstarg "2" | toUpper | head)
+				(list "two" | map { |x| toUpper $x } | head):(list "2" | map { |x| toUpper $x } | head)
 				three:"3"
 			]`, want: map[string]any{"one": "1", "TWO": "2", "three": "3"}},
 		{desc: "map 4", expr: `firstarg [:]`, want: map[string]any{}},

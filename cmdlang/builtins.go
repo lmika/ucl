@@ -1,12 +1,9 @@
 package cmdlang
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 )
 
@@ -48,18 +45,15 @@ func setBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return newVal, nil
 }
 
-func toUpperBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
-	// Handle args
-	return mapFilterStream{
-		in: inStream,
-		mapFn: func(x object) (object, bool, error) {
-			s, ok := x.(strObject)
-			if !ok {
-				return nil, false, nil
-			}
-			return strObject(strings.ToUpper(string(s))), true, nil
-		},
-	}, nil
+func toUpperBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(1); err != nil {
+		return nil, err
+	}
+	sarg, err := args.stringArg(0)
+	if err != nil {
+		return nil, err
+	}
+	return strObject(strings.ToUpper(sarg)), nil
 }
 
 func eqBuiltin(ctx context.Context, args invocationArgs) (object, error) {
@@ -92,18 +86,19 @@ func concatBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return strObject(sb.String()), nil
 }
 
-func catBuiltin(ctx context.Context, args invocationArgs) (object, error) {
-	if err := args.expectArgn(1); err != nil {
-		return nil, err
-	}
-
-	filename, err := args.stringArg(0)
-	if err != nil {
-		return nil, err
-	}
-
-	return &fileLinesStream{filename: filename}, nil
-}
+//
+//func catBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+//	if err := args.expectArgn(1); err != nil {
+//		return nil, err
+//	}
+//
+//	filename, err := args.stringArg(0)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return &fileLinesStream{filename: filename}, nil
+//}
 
 func callBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if err := args.expectArgn(1); err != nil {
@@ -118,47 +113,49 @@ func callBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return inv.invoke(ctx, args.shift(1))
 }
 
-func mapBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
-	args, strm, err := args.streamableSource(inStream)
+func mapBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(2); err != nil {
+		return nil, err
+	}
+
+	inv, err := args.invokableArg(1)
 	if err != nil {
 		return nil, err
 	}
 
+	switch t := args.args[0].(type) {
+	case listable:
+		l := t.Len()
+		newList := listObject{}
+		for i := 0; i < l; i++ {
+			v := t.Index(i)
+			m, err := inv.invoke(ctx, args.fork([]object{v}))
+			if err != nil {
+				return nil, err
+			}
+			newList = append(newList, m)
+		}
+		return newList, nil
+	}
+	return nil, errors.New("expected listable")
+}
+
+func firstBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if err := args.expectArgn(1); err != nil {
 		return nil, err
 	}
 
-	inv, ok := args.args[0].(invokable)
-	if !ok {
-		return nil, errors.New("expected invokable")
+	switch t := args.args[0].(type) {
+	case listable:
+		if t.Len() == 0 {
+			return nil, nil
+		}
+		return t.Index(0), nil
 	}
-
-	return mapFilterStream{
-		in: strm,
-		mapFn: func(x object) (object, bool, error) {
-			y, err := inv.invoke(ctx, args.fork(nil, []object{x}))
-			return y, true, err
-		},
-	}, nil
+	return nil, errors.New("expected listable")
 }
 
-func firstBuiltin(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
-	args, strm, err := args.streamableSource(inStream)
-	if err != nil {
-		return nil, err
-	}
-	defer strm.close()
-
-	x, err := strm.next()
-	if errors.Is(err, io.EOF) {
-		return nil, nil
-	} else if err != nil {
-		return x, nil
-	}
-
-	return x, nil
-}
-
+/*
 type fileLinesStream struct {
 	filename string
 	f        *os.File
@@ -200,6 +197,7 @@ func (f *fileLinesStream) close() error {
 	}
 	return nil
 }
+*/
 
 func ifBuiltin(ctx context.Context, args macroArgs) (object, error) {
 	if args.nargs() < 2 {
@@ -268,7 +266,6 @@ func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
 				return nil, err
 			}
 		}
-		// TODO: streams
 	}
 
 	return last, nil

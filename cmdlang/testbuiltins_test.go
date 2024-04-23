@@ -31,22 +31,24 @@ func WithTestBuiltin() InstOption {
 			return strObject(line.String()), nil
 		}))
 
-		i.rootEC.addCmd("pipe", invokableFunc(func(ctx context.Context, args invocationArgs) (object, error) {
-			return &listIterStream{
-				list: args.args,
-			}, nil
+		i.rootEC.addCmd("list", invokableFunc(func(ctx context.Context, args invocationArgs) (object, error) {
+			return listObject(args.args), nil
 		}))
 
-		i.rootEC.addCmd("joinpipe", invokableStreamFunc(func(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
+		i.rootEC.addCmd("joinpipe", invokableFunc(func(ctx context.Context, args invocationArgs) (object, error) {
 			sb := strings.Builder{}
-			if err := forEach(inStream, func(o object, i int) error {
-				if i > 0 {
+
+			lst, ok := args.args[0].(listable)
+			if !ok {
+				return strObject(""), nil
+			}
+
+			l := lst.Len()
+			for x := 0; x < l; x++ {
+				if x > 0 {
 					sb.WriteString(",")
 				}
-				sb.WriteString(o.String())
-				return nil
-			}); err != nil {
-				return nil, err
+				sb.WriteString(lst.Index(x).String())
 			}
 			return strObject(sb.String()), nil
 		}))
@@ -292,17 +294,20 @@ func TestBuiltins_Map(t *testing.T) {
 			proc makeUpper { |x| $x | toUpper }
 
 			map ["a" "b" "c"] (proc { |x| makeUpper $x }) 
-			`, want: "A\nB\nC\n"},
+			`, want: "[A B C]\n"},
 		{desc: "map list 2", expr: `
 			set makeUpper (proc { |x| $x | toUpper })
 
 			map ["a" "b" "c"] $makeUpper 
-			`, want: "A\nB\nC\n"},
-		{desc: "map list with stream", expr: `
+			`, want: "[A B C]\n"},
+		{desc: "map list with pipe", expr: `
 			set makeUpper (proc { |x| $x | toUpper })
 
 			["a" "b" "c"] | map $makeUpper 
-			`, want: "A\nB\nC\n"},
+			`, want: "[A B C]\n"},
+		{desc: "map list with block", expr: `
+			map ["a" "b" "c"] { |x| toUpper $x } 
+			`, want: "[A B C]\n"},
 		//{desc: "map list with stream", expr: `
 		//	set makeUpper (proc { |x| $x | toUpper })
 		//

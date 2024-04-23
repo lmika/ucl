@@ -18,6 +18,11 @@ type listable interface {
 	Index(i int) object
 }
 
+type hashable interface {
+	Len() int
+	Each(func(k string, v object) error) error
+}
+
 type listObject []object
 
 func (lo *listObject) Append(o object) {
@@ -48,6 +53,19 @@ func (s hashObject) String() string {
 
 func (s hashObject) Truthy() bool {
 	return len(s) > 0
+}
+
+func (s hashObject) Len() int {
+	return len(s)
+}
+
+func (s hashObject) Each(fn func(k string, v object) error) error {
+	for k, v := range s {
+		if err := fn(k, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type strObject string
@@ -125,11 +143,11 @@ func fromGoValue(v any) (object, error) {
 }
 
 type macroArgs struct {
-	eval          evaluator
-	ec            *evalCtx
-	currentStream stream
-	ast           *astCmd
-	argShift      int
+	eval     evaluator
+	ec       *evalCtx
+	pipeArg  object
+	ast      *astCmd
+	argShift int
 }
 
 func (ma macroArgs) nargs() int {
@@ -199,30 +217,11 @@ func (ma macroArgs) evalBlock(ctx context.Context, n int, args []object, pushSco
 }
 
 type invocationArgs struct {
-	inst          *Inst
-	ec            *evalCtx
-	currentStream stream
-	args          []object
-	kwargs        map[string]*listObject
-}
-
-// streamableSource takes a stream.  If the stream is set, the inStream and invocation arguments are consumed as is.
-// If not, then the first argument is consumed and returned as a stream.
-func (ia invocationArgs) streamableSource(inStream stream) (invocationArgs, stream, error) {
-	if inStream != nil {
-		return ia, inStream, nil
-	}
-
-	if len(ia.args) < 1 {
-		return ia, nil, errors.New("expected at least 1 argument")
-	}
-
-	switch v := ia.args[0].(type) {
-	case listObject:
-		return ia.shift(1), &listIterStream{list: v}, nil
-	}
-
-	return ia, nil, errors.New("expected arg 0 to be streamable")
+	eval   evaluator
+	inst   *Inst
+	ec     *evalCtx
+	args   []object
+	kwargs map[string]*listObject
 }
 
 func (ia invocationArgs) expectArgn(x int) error {
@@ -243,23 +242,35 @@ func (ia invocationArgs) stringArg(i int) (string, error) {
 	return s.String(), nil
 }
 
-func (ia invocationArgs) fork(currentStr stream, args []object) invocationArgs {
+func (ia invocationArgs) invokableArg(i int) (invokable, error) {
+	if len(ia.args) < i {
+		return nil, errors.New("expected at least " + strconv.Itoa(i) + " args")
+	}
+
+	switch v := ia.args[i].(type) {
+	case invokable:
+		return v, nil
+	}
+	return nil, errors.New("expected an invokable arg")
+}
+
+func (ia invocationArgs) fork(args []object) invocationArgs {
 	return invocationArgs{
-		inst:          ia.inst,
-		ec:            ia.ec,
-		currentStream: currentStr,
-		args:          args,
-		kwargs:        make(map[string]*listObject),
+		eval:   ia.eval,
+		inst:   ia.inst,
+		ec:     ia.ec,
+		args:   args,
+		kwargs: make(map[string]*listObject),
 	}
 }
 
 func (ia invocationArgs) shift(i int) invocationArgs {
 	return invocationArgs{
-		inst:          ia.inst,
-		ec:            ia.ec,
-		currentStream: ia.currentStream,
-		args:          ia.args[i:],
-		kwargs:        ia.kwargs,
+		eval:   ia.eval,
+		inst:   ia.inst,
+		ec:     ia.ec,
+		args:   ia.args[i:],
+		kwargs: ia.kwargs,
 	}
 }
 
@@ -272,25 +283,14 @@ type macroable interface {
 	invokeMacro(ctx context.Context, args macroArgs) (object, error)
 }
 
-type streamInvokable interface {
+type pipeInvokable interface {
 	invokable
-	invokeWithStream(context.Context, stream, invocationArgs) (object, error)
 }
 
 type invokableFunc func(ctx context.Context, args invocationArgs) (object, error)
 
 func (i invokableFunc) invoke(ctx context.Context, args invocationArgs) (object, error) {
 	return i(ctx, args)
-}
-
-type invokableStreamFunc func(ctx context.Context, inStream stream, args invocationArgs) (object, error)
-
-func (i invokableStreamFunc) invoke(ctx context.Context, args invocationArgs) (object, error) {
-	return i(ctx, nil, args)
-}
-
-func (i invokableStreamFunc) invokeWithStream(ctx context.Context, inStream stream, args invocationArgs) (object, error) {
-	return i(ctx, inStream, args)
 }
 
 type blockObject struct {
@@ -303,6 +303,17 @@ func (bo blockObject) String() string {
 
 func (bo blockObject) Truthy() bool {
 	return len(bo.block.Statements) > 0
+}
+
+func (bo blockObject) invoke(ctx context.Context, args invocationArgs) (object, error) {
+	ec := args.ec.fork()
+	for i, n := range bo.block.Names {
+		if i < len(args.args) {
+			ec.setVar(n, args.args[i])
+		}
+	}
+
+	return args.eval.evalBlock(ctx, ec, bo.block)
 }
 
 type macroFunc func(ctx context.Context, args macroArgs) (object, error)
