@@ -252,8 +252,10 @@ func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
 	var last object
 
 	switch t := items.(type) {
-	case listObject:
-		for _, v := range t {
+	case listable:
+		l := t.Len()
+		for i := 0; i < l; i++ {
+			v := t.Index(i)
 			last, err = args.evalBlock(ctx, 1, []object{v}, true) // TO INCLUDE: the index
 			if err != nil {
 				return nil, err

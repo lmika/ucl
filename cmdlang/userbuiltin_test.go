@@ -1,6 +1,7 @@
 package cmdlang_test
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -129,6 +130,34 @@ func TestInst_SetBuiltin(t *testing.T) {
 				res, err := inst.Eval(context.Background(), tt.expr)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, res)
+			})
+		}
+	})
+
+	t.Run("slices returned by commands treated as lists", func(t *testing.T) {
+		tests := []struct {
+			descr   string
+			expr    string
+			want    any
+			wantOut string
+		}{
+			{descr: "return as is", expr: `countTo3`, want: []string{"1", "2", "3"}},
+			{descr: "iterate over", expr: `foreach (countTo3) { |x| echo $x }`, wantOut: "1\n2\n3\n"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.descr, func(t *testing.T) {
+				outW := bytes.NewBuffer(nil)
+				inst := cmdlang.New(cmdlang.WithOut(outW))
+
+				inst.SetBuiltin("countTo3", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+					return []string{"1", "2", "3"}, nil
+				})
+
+				res, err := inst.Eval(context.Background(), tt.expr)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, res)
+				assert.Equal(t, tt.wantOut, outW.String())
 			})
 		}
 	})

@@ -4,12 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 )
 
 type object interface {
 	String() string
 	Truthy() bool
+}
+
+type listable interface {
+	Len() int
+	Index(i int) object
 }
 
 type listObject []object
@@ -24,6 +30,14 @@ func (s listObject) String() string {
 
 func (s listObject) Truthy() bool {
 	return len(s) > 0
+}
+
+func (s listObject) Len() int {
+	return len(s)
+}
+
+func (s listObject) Index(i int) object {
+	return s[i]
 }
 
 type hashObject map[string]object
@@ -87,6 +101,8 @@ func toGoValue(obj object) (interface{}, bool) {
 		return xs, true
 	case proxyObject:
 		return v.p, true
+	case listableProxyObject:
+		return v.v.Interface(), true
 	}
 
 	return nil, false
@@ -98,9 +114,14 @@ func fromGoValue(v any) (object, error) {
 		return nil, nil
 	case string:
 		return strObject(t), nil
-	default:
-		return proxyObject{t}, nil
 	}
+
+	resVal := reflect.ValueOf(v)
+	if resVal.Type().Kind() == reflect.Slice {
+		return listableProxyObject{resVal}, nil
+	}
+
+	return proxyObject{v}, nil
 }
 
 type macroArgs struct {
@@ -308,4 +329,28 @@ func (p proxyObject) String() string {
 func (p proxyObject) Truthy() bool {
 	//TODO implement me
 	panic("implement me")
+}
+
+type listableProxyObject struct {
+	v reflect.Value
+}
+
+func (p listableProxyObject) String() string {
+	return fmt.Sprintf("listableProxyObject{%v}", p.v.Type())
+}
+
+func (p listableProxyObject) Truthy() bool {
+	panic("implement me")
+}
+
+func (p listableProxyObject) Len() int {
+	return p.v.Len()
+}
+
+func (p listableProxyObject) Index(i int) object {
+	e, err := fromGoValue(p.v.Index(i).Interface())
+	if err != nil {
+		return nil
+	}
+	return e
 }
