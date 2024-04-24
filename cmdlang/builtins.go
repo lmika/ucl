@@ -113,6 +113,38 @@ func callBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return inv.invoke(ctx, args.shift(1))
 }
 
+func indexBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(1); err != nil {
+		return nil, err
+	}
+
+	val := args.args[0]
+	for _, idx := range args.args[1:] {
+		switch v := val.(type) {
+		case listable:
+			intIdx, ok := idx.(intObject)
+			if !ok {
+				return nil, errors.New("expected int for listable")
+			}
+			if int(intIdx) >= 0 && int(intIdx) < v.Len() {
+				val = v.Index(int(intIdx))
+			} else {
+				val = nil
+			}
+		case hashable:
+			strIdx, ok := idx.(strObject)
+			if !ok {
+				return nil, errors.New("expected string for hashable")
+			}
+			val = v.Value(string(strIdx))
+		default:
+			return val, nil
+		}
+	}
+
+	return val, nil
+}
+
 func mapBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if err := args.expectArgn(2); err != nil {
 		return nil, err

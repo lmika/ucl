@@ -20,6 +20,7 @@ type listable interface {
 
 type hashable interface {
 	Len() int
+	Value(k string) object
 	Each(func(k string, v object) error) error
 }
 
@@ -57,6 +58,10 @@ func (s hashObject) Truthy() bool {
 
 func (s hashObject) Len() int {
 	return len(s)
+}
+
+func (s hashObject) Value(k string) object {
+	return s[k]
 }
 
 func (s hashObject) Each(fn func(k string, v object) error) error {
@@ -133,6 +138,8 @@ func toGoValue(obj object) (interface{}, bool) {
 		return v.p, true
 	case listableProxyObject:
 		return v.v.Interface(), true
+	case structProxyObject:
+		return v.v.Interface(), true
 	}
 
 	return nil, false
@@ -144,11 +151,16 @@ func fromGoValue(v any) (object, error) {
 		return nil, nil
 	case string:
 		return strObject(t), nil
+	case int:
+		return intObject(t), nil
 	}
 
 	resVal := reflect.ValueOf(v)
-	if resVal.Type().Kind() == reflect.Slice {
+	switch resVal.Kind() {
+	case reflect.Slice:
 		return listableProxyObject{resVal}, nil
+	case reflect.Struct:
+		return structProxyObject{resVal}, nil
 	}
 
 	return proxyObject{v}, nil
@@ -377,4 +389,43 @@ func (p listableProxyObject) Index(i int) object {
 		return nil
 	}
 	return e
+}
+
+type structProxyObject struct {
+	v reflect.Value
+}
+
+func (s structProxyObject) String() string {
+	return fmt.Sprintf("structProxyObject{%v}", s.v.Type())
+}
+
+func (s structProxyObject) Truthy() bool {
+	return true
+}
+
+func (s structProxyObject) Len() int {
+	return s.v.Type().NumField()
+}
+
+func (s structProxyObject) Value(k string) object {
+	e, err := fromGoValue(s.v.FieldByName(k).Interface())
+	if err != nil {
+		return nil
+	}
+	return e
+}
+
+func (s structProxyObject) Each(fn func(k string, v object) error) error {
+	for i := 0; i < s.v.Type().NumField(); i++ {
+		f := s.v.Type().Field(i).Name
+		v, err := fromGoValue(s.v.Field(i).Interface())
+		if err != nil {
+			v = nil
+		}
+
+		if err := fn(f, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }

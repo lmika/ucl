@@ -68,18 +68,33 @@ func bindArg(v interface{}, arg object) error {
 		*t = arg.String()
 	}
 
-	// Check for proxy object
-	if po, ok := arg.(proxyObject); ok {
-		poValue := reflect.ValueOf(po.p)
-		argValue := reflect.ValueOf(v)
+	switch t := arg.(type) {
+	case proxyObject:
+		return bindProxyObject(v, reflect.ValueOf(t.p))
+	case listableProxyObject:
+		return bindProxyObject(v, t.v)
+	case structProxyObject:
+		return bindProxyObject(v, t.v)
+	}
 
-		if argValue.Type().Kind() != reflect.Pointer {
+	return nil
+}
+
+func bindProxyObject(v interface{}, r reflect.Value) error {
+	argValue := reflect.ValueOf(v)
+	if argValue.Kind() != reflect.Ptr {
+		return errors.New("v must be a pointer to a struct")
+	}
+
+	for {
+		if r.Type().AssignableTo(argValue.Elem().Type()) {
+			argValue.Elem().Set(r)
 			return nil
-		} else if !poValue.Type().AssignableTo(argValue.Elem().Type()) {
+		}
+		if r.Type().Kind() != reflect.Pointer {
 			return nil
 		}
 
-		argValue.Elem().Set(poValue)
+		r = r.Elem()
 	}
-	return nil
 }

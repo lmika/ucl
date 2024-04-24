@@ -31,6 +31,7 @@ func New(opts ...InstOption) *Inst {
 	rootEC.addCmd("set", invokableFunc(setBuiltin))
 	rootEC.addCmd("toUpper", invokableFunc(toUpperBuiltin))
 	//rootEC.addCmd("cat", invokableFunc(catBuiltin))
+	rootEC.addCmd("index", invokableFunc(indexBuiltin))
 	rootEC.addCmd("call", invokableFunc(callBuiltin))
 
 	rootEC.addCmd("map", invokableFunc(mapBuiltin))

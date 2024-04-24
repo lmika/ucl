@@ -188,6 +188,7 @@ func TestBuiltins_ForEach(t *testing.T) {
 		// TODO: hash is not sorted, so need to find a way to sort it
 		{desc: "iterate over map", expr: `
 			foreach [a:"1"] { |k v| echo $k "=" $v }`, want: "a=1\n(nil)\n"},
+		{desc: "iterate via pipe", expr: `["2" "4" "6"] | foreach { |x| echo $x }`, want: "2\n4\n6\n(nil)\n"},
 	}
 
 	for _, tt := range tests {
@@ -322,6 +323,62 @@ func TestBuiltins_Map(t *testing.T) {
 			outW := bytes.NewBuffer(nil)
 
 			inst := New(WithOut(outW), WithTestBuiltin())
+			err := inst.EvalAndDisplay(ctx, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}
+
+func TestBuiltins_Index(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "index from list 1", expr: `index ["alpha" "beta" "gamma"] 0`, want: "alpha\n"},
+		{desc: "index from list 2", expr: `index ["alpha" "beta" "gamma"] 1`, want: "beta\n"},
+		{desc: "index from list 3", expr: `index ["alpha" "beta" "gamma"] 2`, want: "gamma\n"},
+		{desc: "index from list 4", expr: `index ["alpha" "beta" "gamma"] 3`, want: "(nil)\n"},
+
+		{desc: "index from hash 1", expr: `index ["first":"alpha" "second":"beta" "third":"gamma"] "first"`, want: "alpha\n"},
+		{desc: "index from hash 2", expr: `index ["first":"alpha" "second":"beta" "third":"gamma"] "second"`, want: "beta\n"},
+		{desc: "index from hash 3", expr: `index ["first":"alpha" "second":"beta" "third":"gamma"] "third"`, want: "gamma\n"},
+		{desc: "index from hash 4", expr: `index ["first":"alpha" "second":"beta" "third":"gamma"] "missing"`, want: "(nil)\n"},
+
+		{desc: "multi-list 1", expr: `index [[1 2] [3 4]] 0 1`, want: "2\n"},
+		{desc: "multi-list 2", expr: `index [[1 2] [3 4]] 1 0`, want: "3\n"},
+		{desc: "list of hash 1", expr: `index [["id":"abc"] ["id":"123"]] 0 id`, want: "abc\n"},
+		{desc: "list of hash 2", expr: `index [["id":"abc"] ["id":"123"]] 1 id`, want: "123\n"},
+
+		{desc: "go list 1", expr: `goInt | index 1`, want: "5\n"},
+		{desc: "go list 2", expr: `goInt | index 2`, want: "4\n"},
+		{desc: "go struct 1", expr: `goStruct | index Alpha`, want: "foo\n"},
+		{desc: "go struct 2", expr: `goStruct | index Beta`, want: "bar\n"},
+		{desc: "go struct 3", expr: `goStruct | index Gamma 1`, want: "33\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			inst.SetBuiltin("goInt", func(ctx context.Context, args CallArgs) (any, error) {
+				return []int{6, 5, 4}, nil
+			})
+			inst.SetBuiltin("goStruct", func(ctx context.Context, args CallArgs) (any, error) {
+				return struct {
+					Alpha string
+					Beta  string
+					Gamma []int
+				}{
+					Alpha: "foo",
+					Beta:  "bar",
+					Gamma: []int{22, 33},
+				}, nil
+			})
 			err := inst.EvalAndDisplay(ctx, tt.expr)
 
 			assert.NoError(t, err)
