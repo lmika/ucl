@@ -16,6 +16,8 @@ func TestInst_Eval(t *testing.T) {
 		want any
 	}{
 		{desc: "simple string", expr: `firstarg "hello"`, want: "hello"},
+		{desc: "simple int 1", expr: `firstarg 123`, want: 123},
+		{desc: "simple int 2", expr: `firstarg -234`, want: -234},
 		{desc: "simple ident", expr: `firstarg a-test`, want: "a-test"},
 
 		// Sub-expressions

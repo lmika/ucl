@@ -238,13 +238,27 @@ func ifBuiltin(ctx context.Context, args macroArgs) (object, error) {
 }
 
 func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
-	if args.nargs() < 2 {
-		return nil, errors.New("need at least 2 arguments")
-	}
+	var (
+		items    object
+		blockIdx int
+		err      error
+	)
+	if !args.hasPipe {
+		if args.nargs() < 2 {
+			return nil, errors.New("need at least 2 arguments")
+		}
 
-	items, err := args.evalArg(ctx, 0)
-	if err != nil {
-		return nil, err
+		items, err = args.evalArg(ctx, 0)
+		if err != nil {
+			return nil, err
+		}
+		blockIdx = 1
+	} else {
+		if args.nargs() < 1 {
+			return nil, errors.New("need at least 1 argument")
+		}
+		items = args.pipeArg
+		blockIdx = 0
 	}
 
 	var last object
@@ -254,14 +268,14 @@ func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
 		l := t.Len()
 		for i := 0; i < l; i++ {
 			v := t.Index(i)
-			last, err = args.evalBlock(ctx, 1, []object{v}, true) // TO INCLUDE: the index
+			last, err = args.evalBlock(ctx, blockIdx, []object{v}, true) // TO INCLUDE: the index
 			if err != nil {
 				return nil, err
 			}
 		}
 	case hashObject:
 		for k, v := range t {
-			last, err = args.evalBlock(ctx, 1, []object{strObject(k), v}, true)
+			last, err = args.evalBlock(ctx, blockIdx, []object{strObject(k), v}, true)
 			if err != nil {
 				return nil, err
 			}

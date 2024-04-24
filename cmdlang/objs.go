@@ -78,6 +78,16 @@ func (s strObject) Truthy() bool {
 	return string(s) != ""
 }
 
+type intObject int
+
+func (i intObject) String() string {
+	return strconv.Itoa(int(i))
+}
+
+func (i intObject) Truthy() bool {
+	return i != 0
+}
+
 type boolObject bool
 
 func (b boolObject) String() string {
@@ -97,6 +107,8 @@ func toGoValue(obj object) (interface{}, bool) {
 		return nil, true
 	case strObject:
 		return string(v), true
+	case intObject:
+		return int(v), true
 	case listObject:
 		xs := make([]interface{}, 0, len(v))
 		for _, va := range v {
@@ -145,6 +157,7 @@ func fromGoValue(v any) (object, error) {
 type macroArgs struct {
 	eval     evaluator
 	ec       *evalCtx
+	hasPipe  bool
 	pipeArg  object
 	ast      *astCmd
 	argShift int

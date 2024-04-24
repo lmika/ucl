@@ -9,6 +9,7 @@ import (
 
 type astLiteral struct {
 	Str *string `parser:"@String"`
+	Int *int    `parser:"| @Int"`
 }
 
 type astHashKey struct {
@@ -70,6 +71,7 @@ var scanner = lexer.MustStateful(lexer.Rules{
 	"Root": {
 		{"Whitespace", `[ \t]+`, nil},
 		{"String", `"(\\"|[^"])*"`, nil},
+		{"Int", `[-]?[0-9][0-9]*`, nil},
 		{"DOLLAR", `\$`, nil},
 		{"COLON", `\:`, nil},
 		{"LP", `\(`, nil},
@@ -80,7 +82,7 @@ var scanner = lexer.MustStateful(lexer.Rules{
 		{"RC", `\}`, nil},
 		{"NL", `[;\n][; \n\t]*`, nil},
 		{"PIPE", `\|`, nil},
-		{"Ident", `[\w-]+`, nil},
+		{"Ident", `[-]*[a-zA-Z_][\w-]*`, nil},
 	},
 })
 var parser = participle.MustBuild[astScript](participle.Lexer(scanner),

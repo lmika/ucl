@@ -143,6 +143,7 @@ func TestInst_SetBuiltin(t *testing.T) {
 		}{
 			{descr: "return as is", expr: `countTo3`, want: []string{"1", "2", "3"}},
 			{descr: "iterate over", expr: `foreach (countTo3) { |x| echo $x }`, wantOut: "1\n2\n3\n"},
+			{descr: "iterate via foreach", expr: `["2" "4" "6"] | foreach { |x| echo $x }`, wantOut: "2\n4\n6\n"},
 		}
 
 		for _, tt := range tests {

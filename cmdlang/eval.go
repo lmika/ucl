@@ -74,7 +74,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentPipe object,
 		if cmd := ec.lookupInvokable(name); cmd != nil {
 			return e.evalInvokable(ctx, ec, currentPipe, ast, cmd)
 		} else if macro := ec.lookupMacro(name); macro != nil {
-			return e.evalMacro(ctx, ec, currentPipe, ast, macro)
+			return e.evalMacro(ctx, ec, currentPipe != nil, currentPipe, ast, macro)
 		} else {
 			return nil, errors.New("unknown command: " + name)
 		}
@@ -132,10 +132,11 @@ func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentPipe o
 	return cmd.invoke(ctx, invArgs)
 }
 
-func (e evaluator) evalMacro(ctx context.Context, ec *evalCtx, pipeArg object, ast *astCmd, cmd macroable) (object, error) {
+func (e evaluator) evalMacro(ctx context.Context, ec *evalCtx, hasPipe bool, pipeArg object, ast *astCmd, cmd macroable) (object, error) {
 	return cmd.invokeMacro(ctx, macroArgs{
 		eval:    e,
 		ec:      ec,
+		hasPipe: hasPipe,
 		pipeArg: pipeArg,
 		ast:     ast,
 	})
@@ -217,6 +218,8 @@ func (e evaluator) evalLiteral(ctx context.Context, ec *evalCtx, n *astLiteral) 
 			return nil, err
 		}
 		return strObject(uq), nil
+	case n.Int != nil:
+		return intObject(*n.Int), nil
 	}
 	return nil, errors.New("unhandled literal type")
 }
