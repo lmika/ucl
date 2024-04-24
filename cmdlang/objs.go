@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/lmika/gopkgs/fp/slices"
 	"reflect"
 	"strconv"
 )
@@ -160,7 +161,7 @@ func fromGoValue(v any) (object, error) {
 	case reflect.Slice:
 		return listableProxyObject{resVal}, nil
 	case reflect.Struct:
-		return structProxyObject{resVal}, nil
+		return newStructProxyObject(resVal), nil
 	}
 
 	return proxyObject{v}, nil
@@ -392,7 +393,15 @@ func (p listableProxyObject) Index(i int) object {
 }
 
 type structProxyObject struct {
-	v reflect.Value
+	v  reflect.Value
+	vf []reflect.StructField
+}
+
+func newStructProxyObject(v reflect.Value) structProxyObject {
+	return structProxyObject{
+		v:  v,
+		vf: slices.Filter(reflect.VisibleFields(v.Type()), func(t reflect.StructField) bool { return t.IsExported() }),
+	}
 }
 
 func (s structProxyObject) String() string {
@@ -404,7 +413,7 @@ func (s structProxyObject) Truthy() bool {
 }
 
 func (s structProxyObject) Len() int {
-	return s.v.Type().NumField()
+	return len(s.vf)
 }
 
 func (s structProxyObject) Value(k string) object {
@@ -416,14 +425,13 @@ func (s structProxyObject) Value(k string) object {
 }
 
 func (s structProxyObject) Each(fn func(k string, v object) error) error {
-	for i := 0; i < s.v.Type().NumField(); i++ {
-		f := s.v.Type().Field(i).Name
-		v, err := fromGoValue(s.v.Field(i).Interface())
+	for _, f := range s.vf {
+		v, err := fromGoValue(s.v.FieldByName(f.Name).Interface())
 		if err != nil {
 			v = nil
 		}
 
-		if err := fn(f, v); err != nil {
+		if err := fn(f.Name, v); err != nil {
 			return err
 		}
 	}

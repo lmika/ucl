@@ -113,6 +113,23 @@ func callBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return inv.invoke(ctx, args.shift(1))
 }
 
+func lenBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(1); err != nil {
+		return nil, err
+	}
+
+	switch v := args.args[0].(type) {
+	case strObject:
+		return intObject(len(string(v))), nil
+	case listable:
+		return intObject(v.Len()), nil
+	case hashable:
+		return intObject(v.Len()), nil
+	}
+
+	return intObject(0), nil
+}
+
 func indexBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if err := args.expectArgn(1); err != nil {
 		return nil, err

@@ -386,3 +386,62 @@ func TestBuiltins_Index(t *testing.T) {
 		})
 	}
 }
+
+func TestBuiltins_Len(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "len of list 1", expr: `len ["alpha" "beta" "gamma"]`, want: "3\n"},
+		{desc: "len of list 2", expr: `len ["alpha"]`, want: "1\n"},
+		{desc: "len of list 3", expr: `len []`, want: "0\n"},
+
+		{desc: "len of hash 1", expr: `len ["first":"alpha" "second":"beta" "third":"gamma"]`, want: "3\n"},
+		{desc: "len of hash 2", expr: `len ["first":"alpha" "second":"beta"]`, want: "2\n"},
+		{desc: "len of hash 3", expr: `len ["first":"alpha"]`, want: "1\n"},
+		{desc: "len of hash 4", expr: `len [:]`, want: "0\n"},
+
+		{desc: "len of string 1", expr: `len "Hello, world"`, want: "12\n"},
+		{desc: "len of string 2", expr: `len "chair"`, want: "5\n"},
+		{desc: "len of string 3", expr: `len ""`, want: "0\n"},
+
+		{desc: "len of int", expr: `len 1232`, want: "0\n"},
+		{desc: "len of nil", expr: `len ()`, want: "0\n"},
+
+		{desc: "go list 1", expr: `goInt | len`, want: "3\n"},
+		{desc: "go struct 1", expr: `goStruct | len`, want: "3\n"},
+		{desc: "go struct 2", expr: `index (goStruct) Gamma | len`, want: "2\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			inst.SetBuiltin("goInt", func(ctx context.Context, args CallArgs) (any, error) {
+				return []int{6, 5, 4}, nil
+			})
+			inst.SetBuiltin("goStruct", func(ctx context.Context, args CallArgs) (any, error) {
+				return struct {
+					Alpha   string
+					Beta    string
+					Gamma   []int
+					hidden  string
+					missing string
+				}{
+					Alpha:   "foo",
+					Beta:    "bar",
+					Gamma:   []int{22, 33},
+					hidden:  "hidden",
+					missing: "missing",
+				}, nil
+			})
+			err := inst.EvalAndDisplay(ctx, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}
