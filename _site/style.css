@@ -1,0 +1,5 @@
+#terminal {
+    border: solid 4px black;
+    border-radius: 5px;
+    scrollbar-color:  white black;
+}

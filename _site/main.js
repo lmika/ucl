@@ -2,14 +2,15 @@ import "xterm";
 import "wasm_exec";
 
 
-var term = new Terminal();
+var term = new Terminal({
+    lineHeight: 1.2,
+});
 term.open(document.getElementById('terminal'));
 
 function startSession(term) {
     let buffer = "";
     let lineBuffer = "";
 
-    term.writeln('Interactive mode');
     term.write('> ');
 
     term.onKey((ev, dom) => {
@@ -53,6 +54,7 @@ function startSession(term) {
     }
     ucl.onOutLine = (line) => { term.writeln(line); }
     ucl.onError = (err) => { term.writeln('error: ' + err); }
+    term.focus();
 }
 
 const go = new Go();

@@ -276,6 +276,12 @@ func (ia invocationArgs) invokableArg(i int) (invokable, error) {
 	switch v := ia.args[i].(type) {
 	case invokable:
 		return v, nil
+	case strObject:
+		iv := ia.ec.lookupInvokable(string(v))
+		if iv == nil {
+			return nil, errors.New("'" + string(v) + "' is not invokable")
+		}
+		return iv, nil
 	}
 	return nil, errors.New("expected an invokable arg")
 }

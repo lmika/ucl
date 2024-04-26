@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/@xterm/xterm/css/xterm.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header>
+        <h1>UCL</h1>
+    </header>
+
+    <main>
+        <h3>Playground</h3>
+
+        <div class="terminal" id="terminal"></div>
+
+        <script type="importmap">
+            {
+              "imports": {
+                "xterm": "https://unpkg.com/@xterm/xterm/lib/xterm.js",
+                "wasm_exec": "./wasm_exec.js"
+              }
+            }
+        </script>
+        <script src="/main.js" type="module"></script>
+    </main>
+
+    <footer>
+        <p>By Leon Mika. Terminal control using <a href="https://xtermjs.org">xterm.js</a></p>
+    </footer>
+</body>
+</html>
