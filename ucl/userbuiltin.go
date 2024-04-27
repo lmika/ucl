@@ -24,6 +24,10 @@ func (ca *CallArgs) Bind(vars ...interface{}) error {
 	return nil
 }
 
+func (ca CallArgs) IsTopLevel() bool {
+	return ca.args.ec.parent == nil || ca.args.ec == ca.args.ec.root
+}
+
 func (ca CallArgs) HasSwitch(name string) bool {
 	if ca.args.kwargs == nil {
 		return false

@@ -214,6 +214,48 @@ func TestCallArgs_Bind(t *testing.T) {
 	})
 }
 
+func TestCallArgs_IsTopLevel(t *testing.T) {
+	t.Run("true if the command is running at the top-level frame", func(t *testing.T) {
+		ctx := context.Background()
+		res := make(map[string]bool)
+
+		inst := ucl.New()
+		inst.SetBuiltin("lvl", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+			var n string
+			if err := args.Bind(&n); err != nil {
+				return nil, err
+			}
+
+			res[n] = args.IsTopLevel()
+			return nil, nil
+		})
+
+		_, err := inst.Eval(ctx, `lvl "one"`)
+		assert.NoError(t, err)
+		assert.True(t, res["one"])
+
+		_, err = inst.Eval(ctx, `echo (lvl "two")`)
+		assert.NoError(t, err)
+		assert.True(t, res["two"])
+
+		_, err = inst.Eval(ctx, `proc doLvl { |n| lvl $n } ; doLvl "three"`)
+		assert.NoError(t, err)
+		assert.False(t, res["three"])
+
+		_, err = inst.Eval(ctx, `doLvl "four"`)
+		assert.NoError(t, err)
+		assert.False(t, res["four"])
+
+		_, err = inst.Eval(ctx, `["a"] | map { |x| doLvl "five" ; $x }`)
+		assert.NoError(t, err)
+		assert.False(t, res["five"])
+
+		_, err = inst.Eval(ctx, `if 1 { lvl "six" }`)
+		assert.NoError(t, err)
+		assert.True(t, res["six"])
+	})
+}
+
 type doStringable interface {
 	DoString() string
 }
