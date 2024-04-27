@@ -9,6 +9,7 @@ import (
 	"github.com/alecthomas/participle/v2"
 	"github.com/lmika/ucl/ucl"
 	"strings"
+	"syscall/js"
 )
 
 func invokeUCLCallback(name string, args ...any) {
@@ -18,7 +19,7 @@ func invokeUCLCallback(name string, args ...any) {
 }
 
 func initJS(ctx context.Context) {
-	ucl := make(map[string]any)
+	uclObj := make(map[string]any)
 
 	inst := ucl.New(ucl.WithOut(&uclOut{
 		lineBuffer: new(bytes.Buffer),
@@ -27,7 +28,7 @@ func initJS(ctx context.Context) {
 		},
 	}))
 
-	ucl["eval"] = js.FuncOf(func(this js.Value, args []js.Value) any {
+	uclObj["eval"] = js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 2 {
 			return nil
 		}
@@ -39,7 +40,7 @@ func initJS(ctx context.Context) {
 		}
 
 		wantContinue := args[1].Bool()
-		if err := inst.EvalAndDisplay(ctx, cmdLine); err != nil {
+		if err := ucl.EvalAndDisplay(ctx, inst, cmdLine); err != nil {
 			var p participle.Error
 			if errors.As(err, &p) && wantContinue {
 				invokeUCLCallback("onContinue")
@@ -51,7 +52,7 @@ func initJS(ctx context.Context) {
 		invokeUCLCallback("onNewCommand")
 		return nil
 	})
-	js.Global().Set("ucl", ucl)
+	js.Global().Set("ucl", uclObj)
 }
 
 type uclOut struct {
