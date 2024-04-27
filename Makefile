@@ -2,7 +2,7 @@ clean:
 	-rm -r build
 
 test:
-	go test ./cmdlang/...
+	go test ./ucl/...
 
 site: clean
 	mkdir build

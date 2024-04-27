@@ -7,9 +7,8 @@ import (
 	"context"
 	"errors"
 	"github.com/alecthomas/participle/v2"
-	"github.com/lmika/cmdlang-proto/cmdlang"
+	"github.com/lmika/ucl/ucl"
 	"strings"
-	"syscall/js"
 )
 
 func invokeUCLCallback(name string, args ...any) {
@@ -21,7 +20,7 @@ func invokeUCLCallback(name string, args ...any) {
 func initJS(ctx context.Context) {
 	ucl := make(map[string]any)
 
-	inst := cmdlang.New(cmdlang.WithOut(&uclOut{
+	inst := ucl.New(ucl.WithOut(&uclOut{
 		lineBuffer: new(bytes.Buffer),
 		writeLine: func(line string) {
 			invokeUCLCallback("onOutLine", line)

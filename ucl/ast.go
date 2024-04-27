@@ -1,4 +1,4 @@
-package cmdlang
+package ucl
 
 import (
 	"io"
@@ -64,12 +64,13 @@ type astStatements struct {
 }
 
 type astScript struct {
-	Statements *astStatements `parser:"NL* @@ NL*"`
+	Statements *astStatements `parser:"NL* (@@ NL*)?"`
 }
 
 var scanner = lexer.MustStateful(lexer.Rules{
 	"Root": {
 		{"Whitespace", `[ \t]+`, nil},
+		{"Comment", `[#].*`, nil},
 		{"String", `"(\\"|[^"])*"`, nil},
 		{"Int", `[-]?[0-9][0-9]*`, nil},
 		{"DOLLAR", `\$`, nil},
@@ -86,7 +87,7 @@ var scanner = lexer.MustStateful(lexer.Rules{
 	},
 })
 var parser = participle.MustBuild[astScript](participle.Lexer(scanner),
-	participle.Elide("Whitespace"))
+	participle.Elide("Whitespace", "Comment"))
 
 func parse(r io.Reader) (*astScript, error) {
 	return parser.Parse("test", r)

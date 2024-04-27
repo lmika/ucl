@@ -1,4 +1,4 @@
-package cmdlang
+package ucl
 
 import (
 	"context"
@@ -40,8 +40,7 @@ func setBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 
 	newVal := args.args[1]
 
-	// TODO: if the value is a stream, consume the stream and save it as a list
-	args.ec.setVar(name, newVal)
+	args.ec.setOrDefineVar(name, newVal)
 	return newVal, nil
 }
 
@@ -383,9 +382,9 @@ func (b procObject) invoke(ctx context.Context, args invocationArgs) (object, er
 
 	for i, name := range b.block.Names {
 		if i < len(args.args) {
-			newEc.setVar(name, args.args[i])
+			newEc.setOrDefineVar(name, args.args[i])
 		} else {
-			newEc.setVar(name, nil)
+			newEc.setOrDefineVar(name, nil)
 		}
 	}
 

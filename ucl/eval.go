@@ -1,4 +1,4 @@
-package cmdlang
+package ucl
 
 import (
 	"context"
@@ -27,6 +27,10 @@ func (e evaluator) evalScript(ctx context.Context, ec *evalCtx, n *astScript) (l
 }
 
 func (e evaluator) evalStatement(ctx context.Context, ec *evalCtx, n *astStatements) (object, error) {
+	if n == nil {
+		return nil, nil
+	}
+
 	res, err := e.evalPipeline(ctx, ec, n.First)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package cmdlang
+package ucl
 
 import (
 	"context"
@@ -10,8 +10,8 @@ type CallArgs struct {
 	args invocationArgs
 }
 
-func (ca CallArgs) Bind(vars ...interface{}) error {
-	if len(ca.args.args) != len(vars) {
+func (ca *CallArgs) Bind(vars ...interface{}) error {
+	if len(ca.args.args) < len(vars) {
 		return errors.New("wrong number of arguments")
 	}
 
@@ -20,6 +20,7 @@ func (ca CallArgs) Bind(vars ...interface{}) error {
 			return err
 		}
 	}
+	ca.args = ca.args.shift(len(vars))
 	return nil
 }
 

@@ -1,11 +1,11 @@
-package cmdlang_test
+package ucl_test
 
 import (
 	"bytes"
 	"context"
+	"github.com/lmika/ucl/ucl"
 	"testing"
 
-	"github.com/lmika/cmdlang-proto/cmdlang"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,7 +67,7 @@ func TestInst_Eval(t *testing.T) {
 			ctx := context.Background()
 			outW := bytes.NewBuffer(nil)
 
-			inst := cmdlang.New(cmdlang.WithOut(outW), cmdlang.WithTestBuiltin())
+			inst := ucl.New(ucl.WithOut(outW), ucl.WithTestBuiltin())
 			res, err := inst.Eval(ctx, tt.expr)
 
 			assert.NoError(t, err)

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"github.com/chzyer/readline"
-	"github.com/lmika/cmdlang-proto/cmdlang"
+	"github.com/lmika/ucl/ucl"
 	"log"
 )
 
@@ -14,7 +14,7 @@ func main() {
 	}
 	defer rl.Close()
 
-	inst := cmdlang.New()
+	inst := ucl.New()
 	ctx := context.Background()
 
 	for {
@@ -23,7 +23,7 @@ func main() {
 			break
 		}
 
-		if err := inst.EvalAndDisplay(ctx, line); err != nil {
+		if err := ucl.EvalAndDisplay(ctx, inst, line); err != nil {
 			log.Printf("%T: %v", err, err)
 		}
 	}

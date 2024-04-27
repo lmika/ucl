@@ -1,4 +1,4 @@
-module github.com/lmika/cmdlang-proto
+module github.com/lmika/ucl
 
 go 1.21.1
 

@@ -1,4 +1,4 @@
-package cmdlang
+package ucl
 
 import (
 	"bytes"
@@ -53,8 +53,8 @@ func WithTestBuiltin() InstOption {
 			return strObject(sb.String()), nil
 		}))
 
-		i.rootEC.setVar("a", strObject("alpha"))
-		i.rootEC.setVar("bee", strObject("buzz"))
+		i.rootEC.setOrDefineVar("a", strObject("alpha"))
+		i.rootEC.setOrDefineVar("bee", strObject("buzz"))
 	}
 }
 
@@ -84,6 +84,18 @@ func TestBuiltins_Echo(t *testing.T) {
 ;
 
 			echo "world"
+;
+		`, want: "Hello\nworld\n"},
+		{desc: "multi-line 4", expr: `
+# This is a comment
+#
+
+;;;
+# This is another comment
+			echo "Hello"
+;
+
+			echo "world"	# command after this
 ;
 		`, want: "Hello\nworld\n"},
 	}
@@ -167,7 +179,7 @@ func TestBuiltins_If(t *testing.T) {
 			outW := bytes.NewBuffer(nil)
 
 			inst := New(WithOut(outW), WithTestBuiltin())
-			err := inst.EvalAndDisplay(ctx, tt.expr)
+			err := EvalAndDisplay(ctx, inst, tt.expr)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, outW.String())
@@ -197,7 +209,7 @@ func TestBuiltins_ForEach(t *testing.T) {
 			outW := bytes.NewBuffer(nil)
 
 			inst := New(WithOut(outW), WithTestBuiltin())
-			err := inst.EvalAndDisplay(ctx, tt.expr)
+			err := EvalAndDisplay(ctx, inst, tt.expr)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, outW.String())
@@ -257,18 +269,18 @@ func TestBuiltins_Procs(t *testing.T) {
 			call (makeGreeter "Quick") "call me"
 
 			`, want: "Hello, world\nGoodbye cruel, world\nQuick, call me\n(nil)\n"},
-		//{desc: "modifying closed over variables", expr: `
-		//	proc makeSetter {
-		//		set bla "X"
-		//		proc appendToBla { |x|
-		//			set bla (cat $bla $x)
-		//		}
-		//	}
-		//
-		//	set er (makeSetter)
-		//	call $er "xxx"
-		//	call $er "yyy"
-		//	`, want: "Xxxx\nXxxxyyy(nil)\n"},
+		{desc: "modifying closed over variables", expr: `
+			proc makeSetter {
+				set bla "X"
+				proc appendToBla { |x|
+					set bla (cat $bla $x)
+				}
+			}
+		
+			set er (makeSetter)
+			echo (call $er "xxx")
+			echo (call $er "yyy")
+			`, want: "Xxxx\nXxxxyyy\n(nil)\n"},
 	}
 
 	for _, tt := range tests {
@@ -277,7 +289,7 @@ func TestBuiltins_Procs(t *testing.T) {
 			outW := bytes.NewBuffer(nil)
 
 			inst := New(WithOut(outW), WithTestBuiltin())
-			err := inst.EvalAndDisplay(ctx, tt.expr)
+			err := EvalAndDisplay(ctx, inst, tt.expr)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, outW.String())
@@ -309,12 +321,12 @@ func TestBuiltins_Map(t *testing.T) {
 		{desc: "map list with block", expr: `
 			map ["a" "b" "c"] { |x| toUpper $x } 
 			`, want: "[A B C]\n"},
-		//{desc: "map list with stream", expr: `
-		//	set makeUpper (proc { |x| $x | toUpper })
-		//
-		//	set l (["a" "b" "c"] | map $makeUpper)
-		//	echo $l
-		//	`, want: "[A B C]\n"},
+		{desc: "map list with stream", expr: `
+			set makeUpper (proc { |x| toUpper $x })
+		
+			set l (["a" "b" "c"] | map $makeUpper)
+			echo $l
+			`, want: "[A B C]\n(nil)\n"},
 	}
 
 	for _, tt := range tests {
@@ -323,7 +335,7 @@ func TestBuiltins_Map(t *testing.T) {
 			outW := bytes.NewBuffer(nil)
 
 			inst := New(WithOut(outW), WithTestBuiltin())
-			err := inst.EvalAndDisplay(ctx, tt.expr)
+			err := EvalAndDisplay(ctx, inst, tt.expr)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, outW.String())
@@ -379,7 +391,7 @@ func TestBuiltins_Index(t *testing.T) {
 					Gamma: []int{22, 33},
 				}, nil
 			})
-			err := inst.EvalAndDisplay(ctx, tt.expr)
+			err := EvalAndDisplay(ctx, inst, tt.expr)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, outW.String())
@@ -438,7 +450,7 @@ func TestBuiltins_Len(t *testing.T) {
 					missing: "missing",
 				}, nil
 			})
-			err := inst.EvalAndDisplay(ctx, tt.expr)
+			err := EvalAndDisplay(ctx, inst, tt.expr)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, outW.String())

@@ -1,4 +1,4 @@
-package cmdlang
+package ucl
 
 import (
 	"context"
@@ -235,7 +235,7 @@ func (ma macroArgs) evalBlock(ctx context.Context, n int, args []object, pushSco
 	}
 	for i, n := range block.block.Names {
 		if i < len(args) {
-			ec.setVar(n, args[i])
+			ec.setOrDefineVar(n, args[i])
 		}
 	}
 
@@ -341,7 +341,7 @@ func (bo blockObject) invoke(ctx context.Context, args invocationArgs) (object, 
 	ec := args.ec.fork()
 	for i, n := range bo.block.Names {
 		if i < len(args.args) {
-			ec.setVar(n, args.args[i])
+			ec.setOrDefineVar(n, args.args[i])
 		}
 	}
 
@@ -370,8 +370,7 @@ func (p proxyObject) String() string {
 }
 
 func (p proxyObject) Truthy() bool {
-	//TODO implement me
-	panic("implement me")
+	return p.p != nil
 }
 
 type listableProxyObject struct {
@@ -383,7 +382,7 @@ func (p listableProxyObject) String() string {
 }
 
 func (p listableProxyObject) Truthy() bool {
-	panic("implement me")
+	return p.v.Len() > 0
 }
 
 func (p listableProxyObject) Len() int {

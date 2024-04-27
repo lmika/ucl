@@ -1,9 +1,8 @@
-package cmdlang
+package ucl
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -47,7 +46,7 @@ func New(opts ...InstOption) *Inst {
 
 	//rootEC.addCmd("testTimebomb", invokableStreamFunc(errorTestBuiltin))
 
-	rootEC.setVar("hello", strObject("world"))
+	rootEC.setOrDefineVar("hello", strObject("world"))
 
 	inst := &Inst{
 		out:    os.Stdout,
@@ -92,27 +91,4 @@ func (inst *Inst) eval(ctx context.Context, expr string) (object, error) {
 
 	// TODO: this should be a separate forkAndIsolate() session
 	return eval.evalScript(ctx, inst.rootEC, ast)
-}
-
-func (inst *Inst) EvalAndDisplay(ctx context.Context, expr string) error {
-	res, err := inst.eval(ctx, expr)
-	if err != nil {
-		return err
-	}
-
-	return inst.display(ctx, res)
-}
-
-func (inst *Inst) display(ctx context.Context, res object) (err error) {
-	switch v := res.(type) {
-	case nil:
-		if _, err = fmt.Fprintln(inst.out, "(nil)"); err != nil {
-			return err
-		}
-	default:
-		if _, err = fmt.Fprintln(inst.out, v.String()); err != nil {
-			return err
-		}
-	}
-	return nil
 }

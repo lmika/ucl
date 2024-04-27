@@ -1,19 +1,19 @@
-package cmdlang_test
+package ucl_test
 
 import (
 	"bytes"
 	"context"
+	"github.com/lmika/ucl/ucl"
 	"strings"
 	"testing"
 
-	"github.com/lmika/cmdlang-proto/cmdlang"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestInst_SetBuiltin(t *testing.T) {
 	t.Run("simple builtin accepting and returning strings", func(t *testing.T) {
-		inst := cmdlang.New()
-		inst.SetBuiltin("add2", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+		inst := ucl.New()
+		inst.SetBuiltin("add2", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 			var x, y string
 
 			if err := args.Bind(&x, &y); err != nil {
@@ -28,9 +28,29 @@ func TestInst_SetBuiltin(t *testing.T) {
 		assert.Equal(t, "Hello, World", res)
 	})
 
+	t.Run("bind shift arguments", func(t *testing.T) {
+		inst := ucl.New()
+		inst.SetBuiltin("add2", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+			var x, y string
+
+			if err := args.Bind(&x); err != nil {
+				return nil, err
+			}
+			if err := args.Bind(&y); err != nil {
+				return nil, err
+			}
+
+			return x + y, nil
+		})
+
+		res, err := inst.Eval(context.Background(), `add2 "Hello, " "World"`)
+		assert.NoError(t, err)
+		assert.Equal(t, "Hello, World", res)
+	})
+
 	t.Run("simple builtin with optional switches and strings", func(t *testing.T) {
-		inst := cmdlang.New()
-		inst.SetBuiltin("add2", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+		inst := ucl.New()
+		inst.SetBuiltin("add2", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 			var x, y, sep string
 
 			if err := args.BindSwitch("sep", &sep); err != nil {
@@ -75,8 +95,8 @@ func TestInst_SetBuiltin(t *testing.T) {
 			x, y string
 		}
 
-		inst := cmdlang.New()
-		inst.SetBuiltin("add2", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+		inst := ucl.New()
+		inst.SetBuiltin("add2", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 			var x, y string
 
 			if err := args.Bind(&x, &y); err != nil {
@@ -107,8 +127,8 @@ func TestInst_SetBuiltin(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.descr, func(t *testing.T) {
-				inst := cmdlang.New()
-				inst.SetBuiltin("add2", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+				inst := ucl.New()
+				inst.SetBuiltin("add2", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 					var x, y string
 
 					if err := args.Bind(&x, &y); err != nil {
@@ -117,7 +137,7 @@ func TestInst_SetBuiltin(t *testing.T) {
 
 					return pair{x, y}, nil
 				})
-				inst.SetBuiltin("join", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+				inst.SetBuiltin("join", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 					var x pair
 
 					if err := args.Bind(&x); err != nil {
@@ -148,9 +168,9 @@ func TestInst_SetBuiltin(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.descr, func(t *testing.T) {
 				outW := bytes.NewBuffer(nil)
-				inst := cmdlang.New(cmdlang.WithOut(outW))
+				inst := ucl.New(ucl.WithOut(outW))
 
-				inst.SetBuiltin("countTo3", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+				inst.SetBuiltin("countTo3", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 					return []string{"1", "2", "3"}, nil
 				})
 
@@ -167,14 +187,14 @@ func TestCallArgs_Bind(t *testing.T) {
 	t.Run("bind to an interface", func(t *testing.T) {
 		ctx := context.Background()
 
-		inst := cmdlang.New()
-		inst.SetBuiltin("sa", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+		inst := ucl.New()
+		inst.SetBuiltin("sa", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 			return doStringA{this: "a val"}, nil
 		})
-		inst.SetBuiltin("sb", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+		inst.SetBuiltin("sb", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 			return doStringB{left: "foo", right: "bar"}, nil
 		})
-		inst.SetBuiltin("dostr", func(ctx context.Context, args cmdlang.CallArgs) (any, error) {
+		inst.SetBuiltin("dostr", func(ctx context.Context, args ucl.CallArgs) (any, error) {
 			var ds doStringable
 
 			if err := args.Bind(&ds); err != nil {

@@ -1,4 +1,4 @@
-package cmdlang
+package ucl
 
 type evalCtx struct {
 	root     *evalCtx
@@ -34,7 +34,24 @@ func (ec *evalCtx) addMacro(name string, inv macroable) {
 	ec.root.macros[name] = inv
 }
 
-func (ec *evalCtx) setVar(name string, val object) {
+func (ec *evalCtx) setVar(name string, val object) bool {
+	if ec == nil || ec.vars == nil {
+		return false
+	}
+
+	if _, ok := ec.vars[name]; ok {
+		ec.vars[name] = val
+		return true
+	}
+
+	return ec.parent.setVar(name, val)
+}
+
+func (ec *evalCtx) setOrDefineVar(name string, val object) {
+	if ec.setVar(name, val) {
+		return
+	}
+
 	if ec.vars == nil {
 		ec.vars = make(map[string]object)
 	}
