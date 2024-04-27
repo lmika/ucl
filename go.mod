@@ -1,4 +1,4 @@
-module github.com/lmika/ucl
+module ucl.lmika.dev
 
 go 1.21.1
 

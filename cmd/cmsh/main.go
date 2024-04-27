@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"github.com/chzyer/readline"
-	"github.com/lmika/ucl/ucl"
 	"log"
+	"ucl.lmika.dev/ucl"
 )
 
 func main() {

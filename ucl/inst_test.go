@@ -3,8 +3,8 @@ package ucl_test
 import (
 	"bytes"
 	"context"
-	"github.com/lmika/ucl/ucl"
 	"testing"
+	"ucl.lmika.dev/ucl"
 
 	"github.com/stretchr/testify/assert"
 )

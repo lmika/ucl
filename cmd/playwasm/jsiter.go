@@ -7,9 +7,9 @@ import (
 	"context"
 	"errors"
 	"github.com/alecthomas/participle/v2"
-	"github.com/lmika/ucl/ucl"
 	"strings"
 	"syscall/js"
+	"ucl.lmika.dev/ucl"
 )
 
 func invokeUCLCallback(name string, args ...any) {
