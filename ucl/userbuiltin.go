@@ -24,6 +24,23 @@ func (ca *CallArgs) Bind(vars ...interface{}) error {
 	return nil
 }
 
+func (ca *CallArgs) CanBind(vars ...interface{}) bool {
+	if len(ca.args.args) < len(vars) {
+		return false
+	}
+
+	for i, v := range vars {
+		if !canBindArg(v, ca.args.args[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (ca *CallArgs) Shift(n int) {
+	ca.args = ca.args.shift(n)
+}
+
 func (ca CallArgs) IsTopLevel() bool {
 	return ca.args.ec.parent == nil || ca.args.ec == ca.args.ec.root
 }
@@ -71,6 +88,12 @@ func bindArg(v interface{}, arg object) error {
 	switch t := v.(type) {
 	case *string:
 		*t = arg.String()
+	case *int:
+		if iArg, ok := arg.(intObject); ok {
+			*t = int(iArg)
+		} else {
+			return errors.New("invalid arg")
+		}
 	}
 
 	switch t := arg.(type) {
@@ -83,6 +106,27 @@ func bindArg(v interface{}, arg object) error {
 	}
 
 	return nil
+}
+
+func canBindArg(v interface{}, arg object) bool {
+	switch v.(type) {
+	case *string:
+		return true
+	case *int:
+		_, ok := arg.(intObject)
+		return ok
+	}
+
+	switch t := arg.(type) {
+	case proxyObject:
+		return canBindProxyObject(v, reflect.ValueOf(t.p))
+	case listableProxyObject:
+		return canBindProxyObject(v, t.v)
+	case structProxyObject:
+		return canBindProxyObject(v, t.v)
+	}
+
+	return true
 }
 
 func bindProxyObject(v interface{}, r reflect.Value) error {
@@ -98,6 +142,25 @@ func bindProxyObject(v interface{}, r reflect.Value) error {
 		}
 		if r.Type().Kind() != reflect.Pointer {
 			return nil
+		}
+
+		r = r.Elem()
+	}
+}
+
+func canBindProxyObject(v interface{}, r reflect.Value) bool {
+	argValue := reflect.ValueOf(v)
+	if argValue.Kind() != reflect.Ptr {
+		return false
+	}
+
+	for {
+		if r.Type().AssignableTo(argValue.Elem().Type()) {
+			argValue.Elem().Set(r)
+			return true
+		}
+		if r.Type().Kind() != reflect.Pointer {
+			return true
 		}
 
 		r = r.Elem()

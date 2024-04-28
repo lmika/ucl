@@ -297,6 +297,9 @@ func (ia invocationArgs) fork(args []object) invocationArgs {
 }
 
 func (ia invocationArgs) shift(i int) invocationArgs {
+	if len(ia.args) < i {
+		return ia
+	}
 	return invocationArgs{
 		eval:   ia.eval,
 		inst:   ia.inst,

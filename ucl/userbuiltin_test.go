@@ -214,6 +214,62 @@ func TestCallArgs_Bind(t *testing.T) {
 	})
 }
 
+func TestCallArgs_CanBind(t *testing.T) {
+	t.Run("returns ture of all passed in arguments can be bound without consuming them", func(t *testing.T) {
+		tests := []struct {
+			descr string
+			eval  string
+			want  []string
+		}{
+			{descr: "bind nothing", eval: `test`, want: []string{}},
+			{descr: "bind one", eval: `test "yes"`, want: []string{"str"}},
+			{descr: "bind two", eval: `test "yes" 213`, want: []string{"str", "int"}},
+			{descr: "bind three", eval: `test "yes" 213 (proxy)`, want: []string{"all", "str", "int", "proxy"}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.descr, func(t *testing.T) {
+				type proxyObj struct{}
+
+				ctx := context.Background()
+				res := make([]string, 0)
+
+				inst := ucl.New()
+				inst.SetBuiltin("proxy", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+					return proxyObj{}, nil
+				})
+				inst.SetBuiltin("test", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+					var (
+						s string
+						i int
+						p proxyObj
+					)
+
+					if args.CanBind(&s, &i, &p) {
+						res = append(res, "all")
+					}
+					if args.CanBind(&s) {
+						res = append(res, "str")
+					}
+					args.Shift(1)
+					if args.CanBind(&i) {
+						res = append(res, "int")
+					}
+					args.Shift(1)
+					if args.CanBind(&p) {
+						res = append(res, "proxy")
+					}
+					return nil, nil
+				})
+
+				_, err := inst.Eval(ctx, tt.eval)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, res)
+			})
+		}
+	})
+}
+
 func TestCallArgs_IsTopLevel(t *testing.T) {
 	t.Run("true if the command is running at the top-level frame", func(t *testing.T) {
 		ctx := context.Background()
