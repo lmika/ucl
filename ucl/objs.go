@@ -445,3 +445,23 @@ func (s structProxyObject) Each(fn func(k string, v object) error) error {
 	}
 	return nil
 }
+
+type errBreak struct {
+	isCont bool
+	ret    object
+}
+
+func (e errBreak) Error() string {
+	if e.isCont {
+		return "continue"
+	}
+	return "break"
+}
+
+type errReturn struct {
+	ret object
+}
+
+func (e errReturn) Error() string {
+	return "return"
+}

@@ -68,6 +68,10 @@ func eqBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		if rv, ok := r.(strObject); ok {
 			return boolObject(lv == rv), nil
 		}
+	case intObject:
+		if rv, ok := r.(intObject); ok {
+			return boolObject(lv == rv), nil
+		}
 	}
 	return boolObject(false), nil
 }
@@ -309,7 +313,10 @@ func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
 		blockIdx = 0
 	}
 
-	var last object
+	var (
+		last     object
+		breakErr errBreak
+	)
 
 	switch t := items.(type) {
 	case listable:
@@ -318,19 +325,49 @@ func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
 			v := t.Index(i)
 			last, err = args.evalBlock(ctx, blockIdx, []object{v}, true) // TO INCLUDE: the index
 			if err != nil {
-				return nil, err
+				if errors.As(err, &breakErr) {
+					if !breakErr.isCont {
+						return breakErr.ret, nil
+					}
+				} else {
+					return nil, err
+				}
 			}
 		}
 	case hashObject:
 		for k, v := range t {
 			last, err = args.evalBlock(ctx, blockIdx, []object{strObject(k), v}, true)
 			if err != nil {
-				return nil, err
+				if errors.As(err, &breakErr) {
+					if !breakErr.isCont {
+						return breakErr.ret, nil
+					}
+				} else {
+					return nil, err
+				}
 			}
 		}
 	}
 
 	return last, nil
+}
+
+func breakBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if len(args.args) < 1 {
+		return nil, errBreak{}
+	}
+	return nil, errBreak{ret: args.args[0]}
+}
+
+func continueBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	return nil, errBreak{isCont: true}
+}
+
+func returnBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if len(args.args) < 1 {
+		return nil, errReturn{}
+	}
+	return nil, errReturn{ret: args.args[0]}
 }
 
 func procBuiltin(ctx context.Context, args macroArgs) (object, error) {
@@ -388,5 +425,13 @@ func (b procObject) invoke(ctx context.Context, args invocationArgs) (object, er
 		}
 	}
 
-	return b.eval.evalBlock(ctx, newEc, b.block)
+	res, err := b.eval.evalBlock(ctx, newEc, b.block)
+	if err != nil {
+		var er errReturn
+		if errors.As(err, &er) {
+			return er.ret, nil
+		}
+		return nil, err
+	}
+	return res, nil
 }

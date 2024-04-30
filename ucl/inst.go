@@ -39,6 +39,9 @@ func New(opts ...InstOption) *Inst {
 
 	rootEC.addCmd("eq", invokableFunc(eqBuiltin))
 	rootEC.addCmd("cat", invokableFunc(concatBuiltin))
+	rootEC.addCmd("break", invokableFunc(breakBuiltin))
+	rootEC.addCmd("continue", invokableFunc(continueBuiltin))
+	rootEC.addCmd("return", invokableFunc(returnBuiltin))
 
 	rootEC.addMacro("if", macroFunc(ifBuiltin))
 	rootEC.addMacro("foreach", macroFunc(foreachBuiltin))

@@ -217,6 +217,91 @@ func TestBuiltins_ForEach(t *testing.T) {
 	}
 }
 
+func TestBuiltins_Break(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "break unconditionally returning nothing", expr: `
+			foreach ["1" "2" "3"] { |v|
+				break
+				echo $v
+			}`, want: "(nil)\n"},
+		{desc: "break conditionally returning nothing", expr: `
+			foreach ["1" "2" "3"] { |v|
+				echo $v
+				if (eq $v "2") { break }
+			}`, want: "1\n2\n(nil)\n"},
+		{desc: "break inner loop only returning nothing", expr: `
+			foreach ["a" "b"] { |u|
+				foreach ["1" "2" "3"] { |v|
+					echo $u $v
+					if (eq $v "2") { break }
+				}
+			}`, want: "a1\na2\nb1\nb2\n(nil)\n"},
+		{desc: "break returning value", expr: `
+			echo (foreach ["1" "2" "3"] { |v|
+				echo $v
+				if (eq $v "2") { break "hello" }
+			})`, want: "1\n2\nhello\n(nil)\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			err := EvalAndDisplay(ctx, inst, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}
+
+func TestBuiltins_Continue(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "continue unconditionally", expr: `
+			foreach ["1" "2" "3"] { |v|
+				echo $v "s"
+				continue
+				echo $v "e"
+			}`, want: "1s\n2s\n3s\n(nil)\n"},
+		{desc: "conditionally conditionally", expr: `
+			foreach ["1" "2" "3"] { |v|
+				echo $v "s"
+				if (eq $v "2") { continue }
+				echo $v "e"
+			}`, want: "1s\n1e\n2s\n3s\n3e\n(nil)\n"},
+		{desc: "continue inner loop only", expr: `
+			foreach ["a" "b"] { |u|
+				foreach ["1" "2" "3"] { |v|	
+					if (eq $v "2") { continue }
+					echo $u $v
+				}
+			}`, want: "a1\na3\nb1\nb3\n(nil)\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			err := EvalAndDisplay(ctx, inst, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}
+
 func TestBuiltins_Procs(t *testing.T) {
 	tests := []struct {
 		desc string
@@ -281,6 +366,79 @@ func TestBuiltins_Procs(t *testing.T) {
 			echo (call $er "xxx")
 			echo (call $er "yyy")
 			`, want: "Xxxx\nXxxxyyy\n(nil)\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			err := EvalAndDisplay(ctx, inst, tt.expr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}
+
+func TestBuiltins_Return(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want string
+	}{
+		{desc: "nil return", expr: `
+			proc greet {
+				echo "Hello"
+				return
+				echo "World"
+			}
+
+			greet
+			`, want: "Hello\n(nil)\n"},
+		{desc: "simple return", expr: `
+			proc greet {
+				return "Hello, world"
+				echo "But not me"
+			}
+
+			greet
+			`, want: "Hello, world\n"},
+		{desc: "only return current frame", expr: `
+			proc greetWhat {
+				echo "Greet the"
+				return "moon"
+				echo "world"
+			}
+			proc greet {
+				set what (greetWhat)
+				echo "Hello, " $what
+			}
+
+			greet
+			`, want: "Greet the\nHello, moon\n(nil)\n"},
+		{desc: "return in loop", expr: `
+			proc countdown { |nums|
+				foreach $nums { |n|
+					echo $n
+					if (eq $n 3) {
+						return "abort"
+					}
+				}
+			}
+			countdown [5 4 3 2 1]
+			`, want: "5\n4\n3\nabort\n"},
+		{desc: "recursive procs", expr: `
+			proc four4 { |xs|
+				if (eq $xs "xxxx") {
+					return $xs
+				}
+				four4 (cat $xs "x")	
+			}
+
+			four4
+			`, want: "xxxx\n"},
 	}
 
 	for _, tt := range tests {
