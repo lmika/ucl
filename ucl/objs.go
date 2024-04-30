@@ -465,3 +465,5 @@ type errReturn struct {
 func (e errReturn) Error() string {
 	return "return"
 }
+
+var ErrHalt = errors.New("halt")

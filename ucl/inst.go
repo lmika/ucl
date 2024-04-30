@@ -73,6 +73,9 @@ func (inst *Inst) Out() io.Writer {
 func (inst *Inst) Eval(ctx context.Context, expr string) (any, error) {
 	res, err := inst.eval(ctx, expr)
 	if err != nil {
+		if errors.Is(err, ErrHalt) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
