@@ -3,6 +3,7 @@ package ucl_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"ucl.lmika.dev/ucl"
@@ -184,90 +185,117 @@ func TestInst_SetBuiltin(t *testing.T) {
 }
 
 func TestCallArgs_Bind(t *testing.T) {
-	t.Run("bind to an interface", func(t *testing.T) {
-		ctx := context.Background()
+	ctx := context.Background()
 
-		inst := ucl.New()
-		inst.SetBuiltin("sa", func(ctx context.Context, args ucl.CallArgs) (any, error) {
-			return doStringA{this: "a val"}, nil
-		})
-		inst.SetBuiltin("sb", func(ctx context.Context, args ucl.CallArgs) (any, error) {
-			return doStringB{left: "foo", right: "bar"}, nil
-		})
-		inst.SetBuiltin("dostr", func(ctx context.Context, args ucl.CallArgs) (any, error) {
-			var ds doStringable
-
-			if err := args.Bind(&ds); err != nil {
-				return nil, err
-			}
-
-			return ds.DoString(), nil
-		})
-
-		va, err := inst.Eval(ctx, `dostr (sa)`)
-		assert.NoError(t, err)
-		assert.Equal(t, "do string A: a val", va)
-
-		vb, err := inst.Eval(ctx, `dostr (sb)`)
-		assert.NoError(t, err)
-		assert.Equal(t, "do string B: foo bar", vb)
+	inst := ucl.New()
+	inst.SetBuiltin("sa", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+		return doStringA{this: "a val"}, nil
 	})
+	inst.SetBuiltin("sb", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+		return doStringB{left: "foo", right: "bar"}, nil
+	})
+	inst.SetBuiltin("dostr", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+		var ds doStringable
+
+		if err := args.Bind(&ds); err != nil {
+			return nil, err
+		}
+
+		return ds.DoString(), nil
+	})
+
+	va, err := inst.Eval(ctx, `dostr (sa)`)
+	assert.NoError(t, err)
+	assert.Equal(t, "do string A: a val", va)
+
+	vb, err := inst.Eval(ctx, `dostr (sb)`)
+	assert.NoError(t, err)
+	assert.Equal(t, "do string B: foo bar", vb)
 }
 
 func TestCallArgs_CanBind(t *testing.T) {
-	t.Run("returns ture of all passed in arguments can be bound without consuming them", func(t *testing.T) {
-		tests := []struct {
-			descr string
-			eval  string
-			want  []string
-		}{
-			{descr: "bind nothing", eval: `test`, want: []string{}},
-			{descr: "bind one", eval: `test "yes"`, want: []string{"str"}},
-			{descr: "bind two", eval: `test "yes" 213`, want: []string{"str", "int"}},
-			{descr: "bind three", eval: `test "yes" 213 (proxy)`, want: []string{"all", "str", "int", "proxy"}},
-		}
+	tests := []struct {
+		descr string
+		eval  string
+		want  []string
+	}{
+		{descr: "bind nothing", eval: `test`, want: []string{}},
+		{descr: "bind one", eval: `test "yes"`, want: []string{"str"}},
+		{descr: "bind two", eval: `test "yes" 213`, want: []string{"str", "int"}},
+		{descr: "bind three", eval: `test "yes" 213 (proxy)`, want: []string{"all", "str", "int", "proxy"}},
+	}
 
-		for _, tt := range tests {
-			t.Run(tt.descr, func(t *testing.T) {
-				type proxyObj struct{}
+	for _, tt := range tests {
+		t.Run(tt.descr, func(t *testing.T) {
+			type proxyObj struct{}
 
-				ctx := context.Background()
-				res := make([]string, 0)
+			ctx := context.Background()
+			res := make([]string, 0)
 
-				inst := ucl.New()
-				inst.SetBuiltin("proxy", func(ctx context.Context, args ucl.CallArgs) (any, error) {
-					return proxyObj{}, nil
-				})
-				inst.SetBuiltin("test", func(ctx context.Context, args ucl.CallArgs) (any, error) {
-					var (
-						s string
-						i int
-						p proxyObj
-					)
-
-					if args.CanBind(&s, &i, &p) {
-						res = append(res, "all")
-					}
-					if args.CanBind(&s) {
-						res = append(res, "str")
-					}
-					args.Shift(1)
-					if args.CanBind(&i) {
-						res = append(res, "int")
-					}
-					args.Shift(1)
-					if args.CanBind(&p) {
-						res = append(res, "proxy")
-					}
-					return nil, nil
-				})
-
-				_, err := inst.Eval(ctx, tt.eval)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, res)
+			inst := ucl.New()
+			inst.SetBuiltin("proxy", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+				return proxyObj{}, nil
 			})
-		}
-	})
+			inst.SetBuiltin("test", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+				var (
+					s string
+					i int
+					p proxyObj
+				)
+
+				if args.CanBind(&s, &i, &p) {
+					res = append(res, "all")
+				}
+				if args.CanBind(&s) {
+					res = append(res, "str")
+				}
+				args.Shift(1)
+				if args.CanBind(&i) {
+					res = append(res, "int")
+				}
+				args.Shift(1)
+				if args.CanBind(&p) {
+					res = append(res, "proxy")
+				}
+				return nil, nil
+			})
+
+			_, err := inst.Eval(ctx, tt.eval)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, res)
+		})
+	}
+}
+
+func TestCallArgs_MissingCommandHandler(t *testing.T) {
+	tests := []struct {
+		descr string
+		eval  string
+		want  string
+	}{
+		{descr: "alpha", eval: `alpha`, want: "was alpha"},
+		{descr: "bravo", eval: `bravo "this"`, want: "was bravo: this"},
+		{descr: "charlie", eval: `charlie`, want: "was charlie"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.descr, func(t *testing.T) {
+			ctx := context.Background()
+
+			inst := ucl.New(
+				ucl.WithMissingBuiltinHandler(func(ctx context.Context, name string, args ucl.CallArgs) (any, error) {
+					var msg string
+					if err := args.Bind(&msg); err == nil {
+						return fmt.Sprintf("was %v: %v", name, msg), nil
+					}
+					return fmt.Sprintf("was %v", name), nil
+				}))
+
+			res, err := inst.Eval(ctx, tt.eval)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, res)
+		})
+	}
 }
 
 func TestCallArgs_IsTopLevel(t *testing.T) {

@@ -9,7 +9,8 @@ import (
 )
 
 type Inst struct {
-	out io.Writer
+	out                   io.Writer
+	missingBuiltinHandler MissingBuiltinHandler
 
 	rootEC *evalCtx
 }
@@ -19,6 +20,12 @@ type InstOption func(*Inst)
 func WithOut(out io.Writer) InstOption {
 	return func(i *Inst) {
 		i.out = out
+	}
+}
+
+func WithMissingBuiltinHandler(handler MissingBuiltinHandler) InstOption {
+	return func(i *Inst) {
+		i.missingBuiltinHandler = handler
 	}
 }
 

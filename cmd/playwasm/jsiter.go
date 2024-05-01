@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"github.com/alecthomas/participle/v2"
@@ -21,12 +20,9 @@ func invokeUCLCallback(name string, args ...any) {
 func initJS(ctx context.Context) {
 	uclObj := make(map[string]any)
 
-	inst := ucl.New(ucl.WithOut(&uclOut{
-		lineBuffer: new(bytes.Buffer),
-		writeLine: func(line string) {
-			invokeUCLCallback("onOutLine", line)
-		},
-	}))
+	inst := ucl.New(ucl.WithOut(ucl.LineHandler(func(line string) {
+		invokeUCLCallback("onOutLine", line)
+	})))
 
 	uclObj["eval"] = js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 2 {
@@ -55,19 +51,20 @@ func initJS(ctx context.Context) {
 	js.Global().Set("ucl", uclObj)
 }
 
-type uclOut struct {
-	lineBuffer *bytes.Buffer
-	writeLine  func(line string)
-}
-
-func (uo *uclOut) Write(p []byte) (n int, err error) {
-	for _, b := range p {
-		if b == '\n' {
-			uo.writeLine(uo.lineBuffer.String())
-			uo.lineBuffer.Reset()
-		} else {
-			uo.lineBuffer.WriteByte(b)
-		}
-	}
-	return len(p), nil
-}
+//
+//type uclOut struct {
+//	lineBuffer *bytes.Buffer
+//	writeLine  func(line string)
+//}
+//
+//func (uo *uclOut) Write(p []byte) (n int, err error) {
+//	for _, b := range p {
+//		if b == '\n' {
+//			uo.writeLine(uo.lineBuffer.String())
+//			uo.lineBuffer.Reset()
+//		} else {
+//			uo.lineBuffer.WriteByte(b)
+//		}
+//	}
+//	return len(p), nil
+//}

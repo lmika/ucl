@@ -6,8 +6,16 @@ import (
 	"reflect"
 )
 
+type BuiltinHandler func(ctx context.Context, args CallArgs) (any, error)
+
+type MissingBuiltinHandler func(ctx context.Context, name string, args CallArgs) (any, error)
+
 type CallArgs struct {
 	args invocationArgs
+}
+
+func (ca *CallArgs) NArgs() int {
+	return len(ca.args.args)
 }
 
 func (ca *CallArgs) Bind(vars ...interface{}) error {
@@ -67,7 +75,7 @@ func (ca CallArgs) BindSwitch(name string, val interface{}) error {
 	return bindArg(val, (*vars)[0])
 }
 
-func (inst *Inst) SetBuiltin(name string, fn func(ctx context.Context, args CallArgs) (any, error)) {
+func (inst *Inst) SetBuiltin(name string, fn BuiltinHandler) {
 	inst.rootEC.addCmd(name, userBuiltin{fn: fn})
 }
 
@@ -165,4 +173,22 @@ func canBindProxyObject(v interface{}, r reflect.Value) bool {
 
 		r = r.Elem()
 	}
+}
+
+func (inst *Inst) missingHandlerInvokable(name string) missingHandlerInvokable {
+	return missingHandlerInvokable{name: name, handler: inst.missingBuiltinHandler}
+}
+
+type missingHandlerInvokable struct {
+	name    string
+	handler MissingBuiltinHandler
+}
+
+func (m missingHandlerInvokable) invoke(ctx context.Context, args invocationArgs) (object, error) {
+	v, err := m.handler(ctx, m.name, CallArgs{args: args})
+	if err != nil {
+		return nil, err
+	}
+
+	return fromGoValue(v)
 }

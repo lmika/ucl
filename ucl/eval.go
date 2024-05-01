@@ -79,6 +79,8 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentPipe object,
 			return e.evalInvokable(ctx, ec, currentPipe, ast, cmd)
 		} else if macro := ec.lookupMacro(name); macro != nil {
 			return e.evalMacro(ctx, ec, currentPipe != nil, currentPipe, ast, macro)
+		} else if missingHandler := e.inst.missingBuiltinHandler; missingHandler != nil {
+			return e.evalInvokable(ctx, ec, currentPipe, ast, e.inst.missingHandlerInvokable(name))
 		} else {
 			return nil, errors.New("unknown command: " + name)
 		}
