@@ -72,7 +72,7 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentPipe object, ast *astCmd) (object, error) {
 	switch {
 	case ast.Name.Ident != nil:
-		name := *ast.Name.Ident
+		name := ast.Name.Ident.String()
 
 		// Regular command
 		if cmd := ec.lookupInvokable(name); cmd != nil {
@@ -117,14 +117,14 @@ func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentPipe o
 		argsPtr.Append(currentPipe)
 	}
 	for _, arg := range ast.Args {
-		if ident := arg.Ident; ident != nil && (*ident)[0] == '-' {
+		if ident := arg.Ident; ident != nil && ident.String()[0] == '-' {
 			// Arg switch
 			if kwargs == nil {
 				kwargs = make(map[string]*listObject)
 			}
 
 			argsPtr = &listObject{}
-			kwargs[(*ident)[1:]] = argsPtr
+			kwargs[ident.String()[1:]] = argsPtr
 		} else {
 			ae, err := e.evalArg(ctx, ec, arg)
 			if err != nil {
@@ -153,7 +153,7 @@ func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (objec
 	case n.Literal != nil:
 		return e.evalLiteral(ctx, ec, n.Literal)
 	case n.Ident != nil:
-		return strObject(*n.Ident), nil
+		return strObject(n.Ident.String()), nil
 	case n.Var != nil:
 		if v, ok := ec.getVar(*n.Var); ok {
 			return v, nil

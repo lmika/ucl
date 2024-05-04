@@ -2,6 +2,7 @@ package ucl
 
 import (
 	"io"
+	"strings"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -12,11 +13,19 @@ type astLiteral struct {
 	Int *int    `parser:"| @Int"`
 }
 
-type astHashKey struct {
-	Literal *astLiteral  `parser:"@@"`
-	Ident   *string      `parser:"| @Ident"`
-	Var     *string      `parser:"| DOLLAR @Ident"`
-	Sub     *astPipeline `parser:"| LP @@ RP"`
+type astIdentNames struct {
+	Ident      string   `parser:"@Ident"`
+	ColonParts []string `parser:"( COLON @Ident )*"`
+}
+
+func (ai *astIdentNames) String() string {
+	sb := strings.Builder{}
+	sb.WriteString(ai.Ident)
+	for _, p := range ai.ColonParts {
+		sb.WriteRune(':')
+		sb.WriteString(p)
+	}
+	return sb.String()
 }
 
 type astElementPair struct {
@@ -41,7 +50,7 @@ type astMaybeSub struct {
 
 type astCmdArg struct {
 	Literal    *astLiteral    `parser:"@@"`
-	Ident      *string        `parser:"| @Ident"`
+	Ident      *astIdentNames `parser:"| @@"`
 	Var        *string        `parser:"| DOLLAR @Ident"`
 	MaybeSub   *astMaybeSub   `parser:"| LP @@ RP"`
 	ListOrHash *astListOrHash `parser:"| @@"`
@@ -83,7 +92,7 @@ var scanner = lexer.MustStateful(lexer.Rules{
 		{"RC", `\}`, nil},
 		{"NL", `[;\n][; \n\t]*`, nil},
 		{"PIPE", `\|`, nil},
-		{"Ident", `[-]*[a-zA-Z_:][\w-:]*`, nil},
+		{"Ident", `[-]*[a-zA-Z_][\w-]*`, nil},
 	},
 })
 var parser = participle.MustBuild[astScript](participle.Lexer(scanner),

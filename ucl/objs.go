@@ -194,7 +194,7 @@ func (ma macroArgs) identIs(ctx context.Context, n int, expectedIdent string) bo
 		return false
 	}
 
-	return *lit == expectedIdent
+	return lit.String() == expectedIdent
 }
 
 func (ma *macroArgs) shiftIdent(ctx context.Context) (string, bool) {
@@ -205,7 +205,7 @@ func (ma *macroArgs) shiftIdent(ctx context.Context) (string, bool) {
 	lit := ma.ast.Args[ma.argShift].Ident
 	if lit != nil {
 		ma.argShift += 1
-		return *lit, true
+		return lit.String(), true
 	}
 	return "", false
 }

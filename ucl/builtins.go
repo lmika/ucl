@@ -334,18 +334,17 @@ func foreachBuiltin(ctx context.Context, args macroArgs) (object, error) {
 				}
 			}
 		}
-	case hashObject:
-		for k, v := range t {
+	case hashable:
+		err := t.Each(func(k string, v object) error {
 			last, err = args.evalBlock(ctx, blockIdx, []object{strObject(k), v}, true)
-			if err != nil {
-				if errors.As(err, &breakErr) {
-					if !breakErr.isCont {
-						return breakErr.ret, nil
-					}
-				} else {
-					return nil, err
-				}
+			return err
+		})
+		if errors.As(err, &breakErr) {
+			if !breakErr.isCont {
+				return breakErr.ret, nil
 			}
+		} else {
+			return nil, err
 		}
 	}
 

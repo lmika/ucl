@@ -465,20 +465,20 @@ func TestBuiltins_Map(t *testing.T) {
 			proc makeUpper { |x| $x | toUpper }
 
 			map ["a" "b" "c"] (proc { |x| makeUpper $x }) 
-			`, want: "[A B C]\n"},
+			`, want: "A\nB\nC\n"},
 		{desc: "map list 2", expr: `
 			set makeUpper (proc { |x| $x | toUpper })
 
 			map ["a" "b" "c"] $makeUpper 
-			`, want: "[A B C]\n"},
+			`, want: "A\nB\nC\n"},
 		{desc: "map list with pipe", expr: `
 			set makeUpper (proc { |x| $x | toUpper })
 
 			["a" "b" "c"] | map $makeUpper 
-			`, want: "[A B C]\n"},
+			`, want: "A\nB\nC\n"},
 		{desc: "map list with block", expr: `
 			map ["a" "b" "c"] { |x| toUpper $x } 
-			`, want: "[A B C]\n"},
+			`, want: "A\nB\nC\n"},
 		{desc: "map list with stream", expr: `
 			set makeUpper (proc { |x| toUpper $x })
 		
