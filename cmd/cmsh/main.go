@@ -5,6 +5,7 @@ import (
 	"github.com/chzyer/readline"
 	"log"
 	"ucl.lmika.dev/ucl"
+	"ucl.lmika.dev/ucl/builtins"
 )
 
 func main() {
@@ -14,7 +15,10 @@ func main() {
 	}
 	defer rl.Close()
 
-	inst := ucl.New()
+	inst := ucl.New(
+		ucl.WithModule(builtins.OS()),
+		ucl.WithModule(builtins.FS(nil)),
+	)
 	ctx := context.Background()
 
 	for {

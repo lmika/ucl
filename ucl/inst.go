@@ -29,6 +29,19 @@ func WithMissingBuiltinHandler(handler MissingBuiltinHandler) InstOption {
 	}
 }
 
+func WithModule(module Module) InstOption {
+	return func(i *Inst) {
+		for name, builtin := range module.Builtins {
+			i.SetBuiltin(module.Name+":"+name, builtin)
+		}
+	}
+}
+
+type Module struct {
+	Name     string
+	Builtins map[string]BuiltinHandler
+}
+
 func New(opts ...InstOption) *Inst {
 	rootEC := &evalCtx{}
 	rootEC.root = rootEC

@@ -94,6 +94,8 @@ func (u userBuiltin) invoke(ctx context.Context, args invocationArgs) (object, e
 
 func bindArg(v interface{}, arg object) error {
 	switch t := v.(type) {
+	case *interface{}:
+		*t, _ = toGoValue(arg)
 	case *string:
 		*t = arg.String()
 	case *int:

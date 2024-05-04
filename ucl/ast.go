@@ -83,7 +83,7 @@ var scanner = lexer.MustStateful(lexer.Rules{
 		{"RC", `\}`, nil},
 		{"NL", `[;\n][; \n\t]*`, nil},
 		{"PIPE", `\|`, nil},
-		{"Ident", `[-]*[a-zA-Z_][\w-]*`, nil},
+		{"Ident", `[-]*[a-zA-Z_:][\w-:]*`, nil},
 	},
 })
 var parser = participle.MustBuild[astScript](participle.Lexer(scanner),
