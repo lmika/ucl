@@ -524,9 +524,21 @@ func TestBuiltins_Index(t *testing.T) {
 
 		{desc: "go list 1", expr: `goInt | index 1`, want: "5\n"},
 		{desc: "go list 2", expr: `goInt | index 2`, want: "4\n"},
+		{desc: "go list 3", expr: `goInt | index 555`, want: "(nil)\n"},
+		{desc: "go list 4", expr: `goInt | index -12`, want: "(nil)\n"},
+		{desc: "go list 5", expr: `goInt | index NotAnIndex`, want: "(nil)\n"},
 		{desc: "go struct 1", expr: `goStruct | index Alpha`, want: "foo\n"},
 		{desc: "go struct 2", expr: `goStruct | index Beta`, want: "bar\n"},
 		{desc: "go struct 3", expr: `goStruct | index Gamma 1`, want: "33\n"},
+		{desc: "go struct 4", expr: `goStruct | index Nested This`, want: "fla\n"},
+		{desc: "go struct 5", expr: `goStruct | index Nested That`, want: "132\n"},
+		{desc: "go struct 6", expr: `goStruct | index NestedPtr This`, want: "flaPtr\n"},
+		{desc: "go struct 7", expr: `goStruct | index NestedPtr That`, want: "6678\n"},
+		{desc: "go struct 8", expr: `goStruct | index Missing`, want: "(nil)\n"},
+		{desc: "go struct 9", expr: `goStruct | index Nested Missing 123 Stuff`, want: "(nil)\n"},
+		{desc: "go struct 10", expr: `goStruct | index NestedPtrNil`, want: "(nil)\n"},
+		{desc: "go struct 11", expr: `goStruct | index NestedPtrNil This`, want: "(nil)\n"},
+		{desc: "go struct 12", expr: `goStruct | index NestedPtrNil Missing`, want: "(nil)\n"},
 	}
 
 	for _, tt := range tests {
@@ -539,14 +551,29 @@ func TestBuiltins_Index(t *testing.T) {
 				return []int{6, 5, 4}, nil
 			})
 			inst.SetBuiltin("goStruct", func(ctx context.Context, args CallArgs) (any, error) {
+				type nested struct {
+					This string
+					That int
+				}
 				return struct {
-					Alpha string
-					Beta  string
-					Gamma []int
+					Alpha        string
+					Beta         string
+					Gamma        []int
+					Nested       nested
+					NestedPtr    *nested
+					NestedPtrNil *nested
 				}{
 					Alpha: "foo",
 					Beta:  "bar",
 					Gamma: []int{22, 33},
+					Nested: nested{
+						This: "fla",
+						That: 132,
+					},
+					NestedPtr: &nested{
+						This: "flaPtr",
+						That: 6678,
+					},
 				}, nil
 			})
 			err := EvalAndDisplay(ctx, inst, tt.expr)

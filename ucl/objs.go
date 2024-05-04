@@ -425,7 +425,19 @@ func (s structProxyObject) Len() int {
 }
 
 func (s structProxyObject) Value(k string) object {
-	e, err := fromGoValue(s.v.FieldByName(k).Interface())
+	f := s.v.FieldByName(k)
+	if !f.IsValid() {
+		return nil
+	}
+
+	if f.Kind() == reflect.Ptr {
+		if f.IsNil() {
+			return nil
+		}
+		f = f.Elem()
+	}
+
+	e, err := fromGoValue(f.Interface())
 	if err != nil {
 		return nil
 	}

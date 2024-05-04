@@ -144,7 +144,7 @@ func indexBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		case listable:
 			intIdx, ok := idx.(intObject)
 			if !ok {
-				return nil, errors.New("expected int for listable")
+				return nil, nil
 			}
 			if int(intIdx) >= 0 && int(intIdx) < v.Len() {
 				val = v.Index(int(intIdx))
