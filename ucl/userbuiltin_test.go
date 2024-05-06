@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
 	"ucl.lmika.dev/ucl"
 
 	"github.com/stretchr/testify/assert"
@@ -265,6 +266,30 @@ func TestCallArgs_CanBind(t *testing.T) {
 			assert.Equal(t, tt.want, res)
 		})
 	}
+
+	t.Run("can bind invokable", func(t *testing.T) {
+		inst := ucl.New()
+		inst.SetBuiltin("wrap", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+			var inv ucl.Invokable
+
+			if err := args.Bind(&inv); err != nil {
+				return nil, err
+			}
+
+			res, err := inv.Invoke(ctx, "hello")
+			if err != nil {
+				return nil, err
+			}
+
+			return fmt.Sprintf("[[%v]]", res), nil
+		})
+
+		ctx := context.Background()
+
+		res, err := inst.Eval(ctx, `wrap { |x| toUpper $x }`)
+		assert.NoError(t, err)
+		assert.Equal(t, "[[HELLO]]", res)
+	})
 }
 
 func TestCallArgs_MissingCommandHandler(t *testing.T) {
