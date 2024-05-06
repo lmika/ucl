@@ -216,7 +216,15 @@ type Invokable struct {
 	ec   *evalCtx
 }
 
+func (i Invokable) IsNil() bool {
+	return i.inv == nil
+}
+
 func (i Invokable) Invoke(ctx context.Context, args ...any) (any, error) {
+	if i.inv == nil {
+		return nil, nil
+	}
+
 	var err error
 	invArgs := invocationArgs{
 		eval: i.eval,

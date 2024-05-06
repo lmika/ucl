@@ -290,6 +290,37 @@ func TestCallArgs_CanBind(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "[[HELLO]]", res)
 	})
+
+	t.Run("can carry invokable outside of context", func(t *testing.T) {
+		inst := ucl.New()
+		var inv ucl.Invokable
+
+		inst.SetBuiltin("wrap", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+			if err := args.Bind(&inv); err != nil {
+				return nil, err
+			}
+
+			return nil, nil
+		})
+
+		ctx := context.Background()
+
+		assert.True(t, inv.IsNil())
+
+		before, err := inv.Invoke(ctx, "hello")
+		assert.NoError(t, err)
+		assert.Nil(t, before)
+
+		res, err := inst.Eval(ctx, `wrap { |x| toUpper $x }`)
+		assert.NoError(t, err)
+		assert.Nil(t, res)
+
+		assert.False(t, inv.IsNil())
+
+		after, err := inv.Invoke(ctx, "hello")
+		assert.NoError(t, err)
+		assert.Equal(t, "HELLO", after)
+	})
 }
 
 func TestCallArgs_MissingCommandHandler(t *testing.T) {
