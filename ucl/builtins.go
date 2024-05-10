@@ -165,6 +165,29 @@ func indexBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return val, nil
 }
 
+func keysBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(1); err != nil {
+		return nil, err
+	}
+
+	val := args.args[0]
+	switch v := val.(type) {
+	case hashable:
+		keys := make(listObject, 0, v.Len())
+		if err := v.Each(func(k string, _ object) error {
+			keys = append(keys, strObject(k))
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		return keys, nil
+	default:
+		return nil, nil
+	}
+
+	return nil, nil
+}
+
 func mapBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if err := args.expectArgn(2); err != nil {
 		return nil, err

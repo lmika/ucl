@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // Builtins used for test
@@ -639,6 +640,60 @@ func TestBuiltins_Len(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, outW.String())
+		})
+	}
+}
+
+func TestBuiltins_Keys(t *testing.T) {
+	type testNested struct {
+		Nested string
+		Type   string
+	}
+
+	tests := []struct {
+		desc      string
+		expr      string
+		wantItems []string
+	}{
+		{desc: "keys of map", expr: `keys [alpha: "hello" bravo: "world"]`, wantItems: []string{"alpha", "bravo"}},
+		{desc: "keys of go struct 1", expr: `goStruct | keys`, wantItems: []string{"Alpha", "Beta", "Gamma"}},
+		{desc: "keys of go struct 2", expr: `index (goStruct) Gamma | keys`, wantItems: []string{"Nested", "Type"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+			inst.SetBuiltin("goInt", func(ctx context.Context, args CallArgs) (any, error) {
+				return []int{6, 5, 4}, nil
+			})
+			inst.SetBuiltin("goStruct", func(ctx context.Context, args CallArgs) (any, error) {
+				return struct {
+					Alpha   string
+					Beta    string
+					Gamma   testNested
+					hidden  string
+					missing string
+				}{
+					Alpha: "foo",
+					Beta:  "bar",
+					Gamma: testNested{
+						Nested: "ads",
+						Type:   "asd",
+					},
+					hidden:  "hidden",
+					missing: "missing",
+				}, nil
+			})
+
+			res, err := inst.Eval(ctx, tt.expr)
+			assert.NoError(t, err)
+			assert.Len(t, res, len(tt.wantItems))
+			for _, i := range tt.wantItems {
+				assert.Contains(t, res, i)
+			}
 		})
 	}
 }
