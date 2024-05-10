@@ -60,6 +60,22 @@ func TestInst_Eval(t *testing.T) {
 				three:"3"
 			]`, want: map[string]any{"one": "1", "TWO": "2", "three": "3"}},
 		{desc: "map 4", expr: `firstarg [:]`, want: map[string]any{}},
+
+		// Dots
+		{desc: "dot 1", expr: `set x [1 2 3] ; $x.(0)`, want: 1},
+		{desc: "dot 2", expr: `set x [1 2 3] ; $x.(1)`, want: 2},
+		{desc: "dot 3", expr: `set x [1 2 3] ; $x.(2)`, want: 3},
+		{desc: "dot 4", expr: `set x [1 2 3] ; $x.(3)`, want: nil},
+		{desc: "dot 5", expr: `set x [1 2 3] ; $x.(add 1 1)`, want: 3},
+		{desc: "dot 6", expr: `set x [alpha:"hello" bravo:"world"] ; $x.alpha`, want: "hello"},
+		{desc: "dot 7", expr: `set x [alpha:"hello" bravo:"world"] ; $x.bravo`, want: "world"},
+		{desc: "dot 8", expr: `set x [alpha:"hello" bravo:"world"] ; $x.charlie`, want: nil},
+		{desc: "dot 9", expr: `set x [alpha:"hello" bravo:"world"] ; $x.("alpha")`, want: "hello"},
+		{desc: "dot 10", expr: `set x [alpha:"hello" bravo:"world"] ; $x.("bravo")`, want: "world"},
+		{desc: "dot 11", expr: `set x [alpha:"hello" bravo:"world"] ; $x.("charlie")`, want: nil},
+		{desc: "dot 12", expr: `set x [MORE:"stuff"] ; $x.("more" | toUpper)`, want: "stuff"},
+		{desc: "dot 13", expr: `set x [MORE:"stuff"] ; $x.(toUpper ("more"))`, want: "stuff"},
+		{desc: "dot 14", expr: `set x [MORE:"stuff"] ; x.y`, want: nil},
 	}
 
 	for _, tt := range tests {

@@ -158,6 +158,27 @@ func lenBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	return intObject(0), nil
 }
 
+func indexLookup(ctx context.Context, obj, elem object) (object, error) {
+	switch v := obj.(type) {
+	case listable:
+		intIdx, ok := elem.(intObject)
+		if !ok {
+			return nil, nil
+		}
+		if int(intIdx) >= 0 && int(intIdx) < v.Len() {
+			return v.Index(int(intIdx)), nil
+		}
+		return nil, nil
+	case hashable:
+		strIdx, ok := elem.(strObject)
+		if !ok {
+			return nil, errors.New("expected string for hashable")
+		}
+		return v.Value(string(strIdx)), nil
+	}
+	return nil, nil
+}
+
 func indexBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 	if err := args.expectArgn(1); err != nil {
 		return nil, err
@@ -165,26 +186,11 @@ func indexBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 
 	val := args.args[0]
 	for _, idx := range args.args[1:] {
-		switch v := val.(type) {
-		case listable:
-			intIdx, ok := idx.(intObject)
-			if !ok {
-				return nil, nil
-			}
-			if int(intIdx) >= 0 && int(intIdx) < v.Len() {
-				val = v.Index(int(intIdx))
-			} else {
-				val = nil
-			}
-		case hashable:
-			strIdx, ok := idx.(strObject)
-			if !ok {
-				return nil, errors.New("expected string for hashable")
-			}
-			val = v.Value(string(strIdx))
-		default:
-			return val, nil
+		newVal, err := indexLookup(ctx, val, idx)
+		if err != nil {
+			return nil, err
 		}
+		val = newVal
 	}
 
 	return val, nil

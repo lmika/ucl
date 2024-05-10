@@ -71,8 +71,8 @@ func (e evaluator) evalPipeline(ctx context.Context, ec *evalCtx, n *astPipeline
 
 func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentPipe object, ast *astCmd) (object, error) {
 	switch {
-	case ast.Name.Ident != nil:
-		name := ast.Name.Ident.String()
+	case (ast.Name.Arg.Ident != nil) && len(ast.Name.DotSuffix) == 0:
+		name := ast.Name.Arg.Ident.String()
 
 		// Regular command
 		if cmd := ec.lookupInvokable(name); cmd != nil {
@@ -85,7 +85,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentPipe object,
 			return nil, errors.New("unknown command: " + name)
 		}
 	case len(ast.Args) > 0:
-		nameElem, err := e.evalArg(ctx, ec, ast.Name)
+		nameElem, err := e.evalDot(ctx, ec, ast.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +98,7 @@ func (e evaluator) evalCmd(ctx context.Context, ec *evalCtx, currentPipe object,
 		return e.evalInvokable(ctx, ec, currentPipe, ast, inv)
 	}
 
-	nameElem, err := e.evalArg(ctx, ec, ast.Name)
+	nameElem, err := e.evalDot(ctx, ec, ast.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentPipe o
 		argsPtr.Append(currentPipe)
 	}
 	for _, arg := range ast.Args {
-		if ident := arg.Ident; ident != nil && ident.String()[0] == '-' {
+		if ident := arg.Arg.Ident; len(arg.DotSuffix) == 0 && ident != nil && ident.String()[0] == '-' {
 			// Arg switch
 			if kwargs == nil {
 				kwargs = make(map[string]*listObject)
@@ -126,7 +126,7 @@ func (e evaluator) evalInvokable(ctx context.Context, ec *evalCtx, currentPipe o
 			argsPtr = &listObject{}
 			kwargs[ident.String()[1:]] = argsPtr
 		} else {
-			ae, err := e.evalArg(ctx, ec, arg)
+			ae, err := e.evalDot(ctx, ec, arg)
 			if err != nil {
 				return nil, err
 			}
@@ -146,6 +146,33 @@ func (e evaluator) evalMacro(ctx context.Context, ec *evalCtx, hasPipe bool, pip
 		pipeArg: pipeArg,
 		ast:     ast,
 	})
+}
+
+func (e evaluator) evalDot(ctx context.Context, ec *evalCtx, n astDot) (object, error) {
+	res, err := e.evalArg(ctx, ec, n.Arg)
+	if err != nil {
+		return nil, err
+	} else if len(n.DotSuffix) == 0 {
+		return res, nil
+	}
+
+	for _, dot := range n.DotSuffix {
+		var idx object
+		if dot.KeyIdent != nil {
+			idx = strObject(dot.KeyIdent.String())
+		} else {
+			idx, err = e.evalPipeline(ctx, ec, dot.Pipeline)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		res, err = indexLookup(ctx, res, idx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (e evaluator) evalArg(ctx context.Context, ec *evalCtx, n astCmdArg) (object, error) {

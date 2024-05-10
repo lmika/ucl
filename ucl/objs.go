@@ -189,7 +189,11 @@ func (ma macroArgs) identIs(ctx context.Context, n int, expectedIdent string) bo
 		return false
 	}
 
-	lit := ma.ast.Args[ma.argShift+n].Ident
+	if len(ma.ast.Args[ma.argShift+n].DotSuffix) != 0 {
+		return false
+	}
+
+	lit := ma.ast.Args[ma.argShift+n].Arg.Ident
 	if lit == nil {
 		return false
 	}
@@ -202,7 +206,11 @@ func (ma *macroArgs) shiftIdent(ctx context.Context) (string, bool) {
 		return "", false
 	}
 
-	lit := ma.ast.Args[ma.argShift].Ident
+	if len(ma.ast.Args[ma.argShift].DotSuffix) != 0 {
+		return "", false
+	}
+
+	lit := ma.ast.Args[ma.argShift].Arg.Ident
 	if lit != nil {
 		ma.argShift += 1
 		return lit.String(), true
@@ -215,7 +223,7 @@ func (ma macroArgs) evalArg(ctx context.Context, n int) (object, error) {
 		return nil, errors.New("not enough arguments") // FIX
 	}
 
-	return ma.eval.evalArg(ctx, ma.ec, ma.ast.Args[ma.argShift+n])
+	return ma.eval.evalDot(ctx, ma.ec, ma.ast.Args[ma.argShift+n])
 }
 
 func (ma macroArgs) evalBlock(ctx context.Context, n int, args []object, pushScope bool) (object, error) {

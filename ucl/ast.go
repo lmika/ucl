@@ -57,9 +57,19 @@ type astCmdArg struct {
 	Block      *astBlock      `parser:"| @@"`
 }
 
+type astDotSuffix struct {
+	KeyIdent *astIdentNames `parser:"@@"`
+	Pipeline *astPipeline   `parser:"| LP @@ RP"`
+}
+
+type astDot struct {
+	Arg       astCmdArg      `parser:"@@"`
+	DotSuffix []astDotSuffix `parser:"( DOT @@ )*"`
+}
+
 type astCmd struct {
-	Name astCmdArg   `parser:"@@"`
-	Args []astCmdArg `parser:"@@*"`
+	Name astDot   `parser:"@@"`
+	Args []astDot `parser:"@@*"`
 }
 
 type astPipeline struct {
@@ -84,6 +94,7 @@ var scanner = lexer.MustStateful(lexer.Rules{
 		{"Int", `[-]?[0-9][0-9]*`, nil},
 		{"DOLLAR", `\$`, nil},
 		{"COLON", `\:`, nil},
+		{"DOT", `[.]`, nil},
 		{"LP", `\(`, nil},
 		{"RP", `\)`, nil},
 		{"LS", `\[`, nil},
