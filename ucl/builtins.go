@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -26,6 +27,30 @@ func echoBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 		return nil, err
 	}
 	return nil, nil
+}
+
+func addBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if len(args.args) == 0 {
+		return intObject(0), nil
+	}
+
+	n := 0
+	for i, a := range args.args {
+		switch t := a.(type) {
+		case intObject:
+			n += int(t)
+		case strObject:
+			v, err := strconv.Atoi(string(t))
+			if err != nil {
+				return nil, fmt.Errorf("arg %v of 'add' not convertable to an int", i)
+			}
+			n += v
+		default:
+			return nil, fmt.Errorf("arg %v of 'add' not convertable to an int", i)
+		}
+	}
+
+	return intObject(n), nil
 }
 
 func setBuiltin(ctx context.Context, args invocationArgs) (object, error) {
@@ -181,8 +206,6 @@ func keysBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 			return nil, err
 		}
 		return keys, nil
-	default:
-		return nil, nil
 	}
 
 	return nil, nil
@@ -211,6 +234,108 @@ func mapBuiltin(ctx context.Context, args invocationArgs) (object, error) {
 			newList = append(newList, m)
 		}
 		return newList, nil
+	}
+	return nil, errors.New("expected listable")
+}
+
+func filterBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	if err := args.expectArgn(2); err != nil {
+		return nil, err
+	}
+
+	inv, err := args.invokableArg(1)
+	if err != nil {
+		return nil, err
+	}
+
+	switch t := args.args[0].(type) {
+	case listable:
+		l := t.Len()
+		newList := listObject{}
+		for i := 0; i < l; i++ {
+			v := t.Index(i)
+			m, err := inv.invoke(ctx, args.fork([]object{v}))
+			if err != nil {
+				return nil, err
+			} else if m.Truthy() {
+				newList = append(newList, v)
+			}
+		}
+		return newList, nil
+	case hashable:
+		newHash := hashObject{}
+		if err := t.Each(func(k string, v object) error {
+			if m, err := inv.invoke(ctx, args.fork([]object{strObject(k), v})); err != nil {
+				return err
+			} else if m.Truthy() {
+				newHash[k] = v
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		return newHash, nil
+	}
+	return nil, errors.New("expected listable")
+}
+
+func reduceBuiltin(ctx context.Context, args invocationArgs) (object, error) {
+	var err error
+	if err = args.expectArgn(2); err != nil {
+		return nil, err
+	}
+
+	var (
+		accum    object
+		setFirst bool
+		block    invokable
+	)
+	if len(args.args) == 3 {
+		accum = args.args[1]
+		block, err = args.invokableArg(2)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		setFirst = true
+		block, err = args.invokableArg(1)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	switch t := args.args[0].(type) {
+	case listable:
+		l := t.Len()
+		for i := 0; i < l; i++ {
+			v := t.Index(i)
+			if setFirst {
+				accum = v
+				setFirst = false
+				continue
+			}
+
+			newAccum, err := block.invoke(ctx, args.fork([]object{v, accum}))
+			if err != nil {
+				return nil, err
+			}
+
+			accum = newAccum
+		}
+		return accum, nil
+	case hashable:
+		// TODO: should raise error?
+		if err := t.Each(func(k string, v object) error {
+			newAccum, err := block.invoke(ctx, args.fork([]object{strObject(k), v, accum}))
+			if err != nil {
+				return err
+			}
+			accum = newAccum
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		return accum, nil
 	}
 	return nil, errors.New("expected listable")
 }

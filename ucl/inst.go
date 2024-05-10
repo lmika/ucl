@@ -55,9 +55,13 @@ func New(opts ...InstOption) *Inst {
 	rootEC.addCmd("call", invokableFunc(callBuiltin))
 
 	rootEC.addCmd("map", invokableFunc(mapBuiltin))
+	rootEC.addCmd("filter", invokableFunc(filterBuiltin))
 	rootEC.addCmd("head", invokableFunc(firstBuiltin))
+	rootEC.addCmd("reduce", invokableFunc(reduceBuiltin))
 
 	rootEC.addCmd("eq", invokableFunc(eqBuiltin))
+	rootEC.addCmd("add", invokableFunc(addBuiltin))
+
 	rootEC.addCmd("cat", invokableFunc(concatBuiltin))
 	rootEC.addCmd("break", invokableFunc(breakBuiltin))
 	rootEC.addCmd("continue", invokableFunc(continueBuiltin))

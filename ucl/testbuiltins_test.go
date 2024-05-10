@@ -697,3 +697,60 @@ func TestBuiltins_Keys(t *testing.T) {
 		})
 	}
 }
+
+func TestBuiltins_Filter(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want any
+	}{
+		{desc: "filter list 1", expr: `filter [1 2 3] { |x| eq $x 2 }`, want: []any{2}},
+		{desc: "filter list 2", expr: `filter ["flim" "flam" "fla"] { |x| eq $x "flam" }`, want: []any{"flam"}},
+		{desc: "filter list 3", expr: `filter ["flim" "flam" "fla"] { |x| eq $x "bogie" }`, want: []any{}},
+
+		{desc: "filter map 1", expr: `filter [alpha:"hello" bravo:"world"] { |k v| eq $k "alpha" }`, want: map[string]any{
+			"alpha": "hello",
+		}},
+		{desc: "filter map 2", expr: `filter [alpha:"hello" bravo:"world"] { |k v| eq $v "world" }`, want: map[string]any{
+			"bravo": "world",
+		}},
+		{desc: "filter map 3", expr: `filter [alpha:"hello" bravo:"world"] { |k v| eq $v "alpha" }`, want: map[string]any{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+
+			res, err := inst.Eval(ctx, tt.expr)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, res)
+		})
+	}
+}
+
+func TestBuiltins_Reduce(t *testing.T) {
+	tests := []struct {
+		desc string
+		expr string
+		want any
+	}{
+		{desc: "reduce list 1", expr: `reduce [1 1 1] { |x a| add $x $a }`, want: 3},
+		{desc: "reduce list 2", expr: `reduce [1 1 1] 20 { |x a| add $x $a }`, want: 23},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			outW := bytes.NewBuffer(nil)
+
+			inst := New(WithOut(outW), WithTestBuiltin())
+
+			res, err := inst.Eval(ctx, tt.expr)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, res)
+		})
+	}
+}
