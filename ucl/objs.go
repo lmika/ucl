@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/lmika/gopkgs/fp/slices"
 	"reflect"
 	"strconv"
+
+	"github.com/lmika/gopkgs/fp/slices"
 )
 
 type object interface {
@@ -156,15 +157,20 @@ func fromGoValue(v any) (object, error) {
 		return intObject(t), nil
 	}
 
-	resVal := reflect.ValueOf(v)
+	return fromGoReflectValue(reflect.ValueOf(v))
+}
+
+func fromGoReflectValue(resVal reflect.Value) (object, error) {
 	switch resVal.Kind() {
 	case reflect.Slice:
 		return listableProxyObject{resVal}, nil
 	case reflect.Struct:
 		return newStructProxyObject(resVal), nil
+	case reflect.Pointer:
+		return fromGoReflectValue(resVal.Elem())
 	}
 
-	return proxyObject{v}, nil
+	return proxyObject{resVal.Interface()}, nil
 }
 
 type macroArgs struct {

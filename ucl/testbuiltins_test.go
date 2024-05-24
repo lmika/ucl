@@ -523,11 +523,15 @@ func TestBuiltins_Index(t *testing.T) {
 		{desc: "list of hash 1", expr: `index [["id":"abc"] ["id":"123"]] 0 id`, want: "abc\n"},
 		{desc: "list of hash 2", expr: `index [["id":"abc"] ["id":"123"]] 1 id`, want: "123\n"},
 
-		{desc: "go list 1", expr: `goInt | index 1`, want: "5\n"},
-		{desc: "go list 2", expr: `goInt | index 2`, want: "4\n"},
-		{desc: "go list 3", expr: `goInt | index 555`, want: "(nil)\n"},
-		{desc: "go list 4", expr: `goInt | index -12`, want: "(nil)\n"},
-		{desc: "go list 5", expr: `goInt | index NotAnIndex`, want: "(nil)\n"},
+		{desc: "go int 1", expr: `goInt | index 1`, want: "5\n"},
+		{desc: "go int 2", expr: `goInt | index 2`, want: "4\n"},
+		{desc: "go int 3", expr: `goInt | index 555`, want: "(nil)\n"},
+		{desc: "go int 4", expr: `goInt | index -12`, want: "(nil)\n"},
+		{desc: "go int 5", expr: `goInt | index NotAnIndex`, want: "(nil)\n"},
+
+		{desc: "go list 1", expr: `goList | index 0 This`, want: "thing 1\n"},
+		{desc: "go list 2", expr: `goList | index 1 This`, want: "thing 2\n"},
+
 		{desc: "go struct 1", expr: `goStruct | index Alpha`, want: "foo\n"},
 		{desc: "go struct 2", expr: `goStruct | index Beta`, want: "bar\n"},
 		{desc: "go struct 3", expr: `goStruct | index Gamma 1`, want: "33\n"},
@@ -550,6 +554,15 @@ func TestBuiltins_Index(t *testing.T) {
 			inst := New(WithOut(outW), WithTestBuiltin())
 			inst.SetBuiltin("goInt", func(ctx context.Context, args CallArgs) (any, error) {
 				return []int{6, 5, 4}, nil
+			})
+			inst.SetBuiltin("goList", func(ctx context.Context, args CallArgs) (any, error) {
+				type nest struct {
+					This string
+				}
+				return []*nest{
+					{This: "thing 1"},
+					{This: "thing 2"},
+				}, nil
 			})
 			inst.SetBuiltin("goStruct", func(ctx context.Context, args CallArgs) (any, error) {
 				type nested struct {
