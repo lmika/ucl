@@ -531,6 +531,9 @@ func TestBuiltins_Index(t *testing.T) {
 
 		{desc: "go list 1", expr: `goList | index 0 This`, want: "thing 1\n"},
 		{desc: "go list 2", expr: `goList | index 1 This`, want: "thing 2\n"},
+		{desc: "go list 3", expr: `goList | index 2`, want: "(nil)\n"},
+		{desc: "go list 4", expr: `goList | index 2 This`, want: "(nil)\n"},
+		{desc: "go list 5", expr: `goList | index 30`, want: "(nil)\n"},
 
 		{desc: "go struct 1", expr: `goStruct | index Alpha`, want: "foo\n"},
 		{desc: "go struct 2", expr: `goStruct | index Beta`, want: "bar\n"},
@@ -562,6 +565,7 @@ func TestBuiltins_Index(t *testing.T) {
 				return []*nest{
 					{This: "thing 1"},
 					{This: "thing 2"},
+					nil,
 				}, nil
 			})
 			inst.SetBuiltin("goStruct", func(ctx context.Context, args CallArgs) (any, error) {

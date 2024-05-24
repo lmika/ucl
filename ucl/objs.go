@@ -161,6 +161,10 @@ func fromGoValue(v any) (object, error) {
 }
 
 func fromGoReflectValue(resVal reflect.Value) (object, error) {
+	if !resVal.IsValid() {
+		return nil, nil
+	}
+
 	switch resVal.Kind() {
 	case reflect.Slice:
 		return listableProxyObject{resVal}, nil
