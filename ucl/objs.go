@@ -141,9 +141,9 @@ func toGoValue(obj object) (interface{}, bool) {
 	case proxyObject:
 		return v.p, true
 	case listableProxyObject:
-		return v.v.Interface(), true
+		return v.orig.Interface(), true
 	case structProxyObject:
-		return v.v.Interface(), true
+		return v.orig.Interface(), true
 	}
 
 	return nil, false
@@ -171,10 +171,17 @@ func fromGoReflectValue(resVal reflect.Value) (object, error) {
 
 	switch resVal.Kind() {
 	case reflect.Slice:
-		return listableProxyObject{resVal}, nil
+		return listableProxyObject{v: resVal, orig: resVal}, nil
 	case reflect.Struct:
-		return newStructProxyObject(resVal), nil
+		return newStructProxyObject(resVal, resVal), nil
 	case reflect.Pointer:
+		switch resVal.Elem().Kind() {
+		case reflect.Slice:
+			return listableProxyObject{v: resVal.Elem(), orig: resVal}, nil
+		case reflect.Struct:
+			return newStructProxyObject(resVal.Elem(), resVal), nil
+		}
+
 		return fromGoReflectValue(resVal.Elem())
 	}
 
@@ -399,7 +406,8 @@ func (p proxyObject) Truthy() bool {
 }
 
 type listableProxyObject struct {
-	v reflect.Value
+	v    reflect.Value
+	orig reflect.Value
 }
 
 func (p listableProxyObject) String() string {
@@ -423,14 +431,16 @@ func (p listableProxyObject) Index(i int) object {
 }
 
 type structProxyObject struct {
-	v  reflect.Value
-	vf []reflect.StructField
+	v    reflect.Value
+	orig reflect.Value
+	vf   []reflect.StructField
 }
 
-func newStructProxyObject(v reflect.Value) structProxyObject {
+func newStructProxyObject(v reflect.Value, orig reflect.Value) structProxyObject {
 	return structProxyObject{
-		v:  v,
-		vf: slices.Filter(reflect.VisibleFields(v.Type()), func(t reflect.StructField) bool { return t.IsExported() }),
+		v:    v,
+		orig: orig,
+		vf:   slices.Filter(reflect.VisibleFields(v.Type()), func(t reflect.StructField) bool { return t.IsExported() }),
 	}
 }
 

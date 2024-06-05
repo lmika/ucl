@@ -389,6 +389,36 @@ func TestBuiltins_Return(t *testing.T) {
 		expr string
 		want string
 	}{
+		// syntax tests
+		{desc: "empty proc 1", expr: `
+			proc greet {}
+			greet
+		`, want: "(nil)\n"},
+		{desc: "empty proc 2", expr: `
+			proc greet {
+			}
+
+			greet
+		`, want: "(nil)\n"},
+		{desc: "empty proc 3", expr: `
+			proc greet {
+
+
+			}
+
+			greet
+		`, want: "(nil)\n"},
+		{desc: "empty proc 4", expr: `
+			proc greet {
+				# bla
+				
+				# di
+				# bla!
+			}
+
+			greet
+		`, want: "(nil)\n"},
+
 		{desc: "nil return", expr: `
 			proc greet {
 				echo "Hello"
@@ -398,6 +428,27 @@ func TestBuiltins_Return(t *testing.T) {
 
 			greet
 			`, want: "Hello\n(nil)\n"},
+
+		{desc: "simple arg 1", expr: `
+			proc greet { |x|
+				return (cat "Hello, " $x)
+			}
+
+			greet "person"
+			`, want: "Hello, person\n"},
+		{desc: "simple arg 2", expr: `
+			proc greet { 
+				# This will greet someone
+				# here are the args:
+				|x|
+
+				# And here is the code
+				return (cat "Hello, " $x)
+			}
+
+			greet "person"
+			`, want: "Hello, person\n"},
+
 		{desc: "simple return", expr: `
 			proc greet {
 				return "Hello, world"
@@ -406,6 +457,7 @@ func TestBuiltins_Return(t *testing.T) {
 
 			greet
 			`, want: "Hello, world\n"},
+
 		{desc: "only return current frame", expr: `
 			proc greetWhat {
 				echo "Greet the"

@@ -40,8 +40,8 @@ type astListOrHash struct {
 }
 
 type astBlock struct {
-	Names      []string         `parser:"LC NL? (PIPE @Ident+ PIPE NL?)?"`
-	Statements []*astStatements `parser:"@@ NL? RC"`
+	Names      []string         `parser:"LC NL* (PIPE @Ident+ PIPE NL*)?"`
+	Statements []*astStatements `parser:"@@? NL* RC"`
 }
 
 type astMaybeSub struct {

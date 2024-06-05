@@ -3,6 +3,7 @@ package ucl_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -111,6 +112,27 @@ func TestInst_SetBuiltin(t *testing.T) {
 		res, err := inst.Eval(context.Background(), `add2 "Hello" "World"`)
 		assert.NoError(t, err)
 		assert.Equal(t, pair{"Hello", "World"}, res)
+	})
+
+	t.Run("builtin return proxy object ptr", func(t *testing.T) {
+		type pair struct {
+			x, y string
+		}
+
+		inst := ucl.New()
+		inst.SetBuiltin("add2", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+			var x, y string
+
+			if err := args.Bind(&x, &y); err != nil {
+				return nil, err
+			}
+
+			return &pair{x, y}, nil
+		})
+
+		res, err := inst.Eval(context.Background(), `add2 "Hello" "World"`)
+		assert.NoError(t, err)
+		assert.Equal(t, &pair{"Hello", "World"}, res)
 	})
 
 	t.Run("builtin operating on and returning proxy object", func(t *testing.T) {
@@ -232,13 +254,15 @@ func TestInst_SetBuiltin(t *testing.T) {
 		opaqueThing := &opaqueThingType{x: "do", y: "not", z: "touch"}
 
 		tests := []struct {
-			descr string
-			expr  string
-			want  opaqueThingType
+			descr   string
+			expr    string
+			want    opaqueThingType
+			wantErr bool
 		}{
 			{descr: "return as is", expr: `getOpaque`, want: *opaqueThing},
 			{descr: "update pointer 1", expr: `set x (getOpaque) ; setProp $x -x "do" -y "touch" -z "this"`, want: opaqueThingType{x: "do", y: "touch", z: "this"}},
 			{descr: "update pointer 2", expr: `set x (getOpaque) ; setProp $x -x "yes" ; setProp $x -y "this" -z "too"`, want: opaqueThingType{x: "yes", y: "this", z: "too"}},
+			{descr: "bad args", expr: `set x (getOpaque) ; setProp $t -x "yes" ; setProp $bla -y "this" -z "too"`, want: *opaqueThing, wantErr: true},
 		}
 
 		for _, tt := range tests {
@@ -255,6 +279,8 @@ func TestInst_SetBuiltin(t *testing.T) {
 
 					if err := args.Bind(&o); err != nil {
 						return nil, err
+					} else if o == nil {
+						return nil, errors.New("is nil")
 					}
 
 					if args.HasSwitch("x") {
@@ -277,8 +303,12 @@ func TestInst_SetBuiltin(t *testing.T) {
 				})
 
 				_, err := inst.Eval(context.Background(), tt.expr)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, *opaqueThing)
+				if tt.wantErr {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.Equal(t, tt.want, *opaqueThing)
+				}
 			})
 		}
 	})
