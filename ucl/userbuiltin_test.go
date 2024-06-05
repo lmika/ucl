@@ -183,6 +183,105 @@ func TestInst_SetBuiltin(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("opaques returned as is", func(t *testing.T) {
+		type opaqueThingType struct {
+			x string
+			y string
+			z string
+		}
+		opaqueThing := &opaqueThingType{x: "do", y: "not", z: "touch"}
+
+		tests := []struct {
+			descr   string
+			expr    string
+			wantErr bool
+		}{
+			{descr: "return as is", expr: `getOpaque`, wantErr: false},
+			{descr: "carry around ok", expr: `set x (getOpaque) ; $x`, wantErr: false},
+			{descr: "iterate over", expr: `foreach (countTo3) { |x| echo $x }`, wantErr: true},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.descr, func(t *testing.T) {
+
+				outW := bytes.NewBuffer(nil)
+				inst := ucl.New(ucl.WithOut(outW))
+
+				inst.SetBuiltin("getOpaque", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+					return ucl.Opaque(opaqueThing), nil
+				})
+
+				res, err := inst.Eval(context.Background(), tt.expr)
+				if tt.wantErr {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.Same(t, opaqueThing, res)
+				}
+			})
+		}
+	})
+
+	t.Run("operate on opaques", func(t *testing.T) {
+		type opaqueThingType struct {
+			x string
+			y string
+			z string
+		}
+		opaqueThing := &opaqueThingType{x: "do", y: "not", z: "touch"}
+
+		tests := []struct {
+			descr string
+			expr  string
+			want  opaqueThingType
+		}{
+			{descr: "return as is", expr: `getOpaque`, want: *opaqueThing},
+			{descr: "update pointer 1", expr: `set x (getOpaque) ; setProp $x -x "do" -y "touch" -z "this"`, want: opaqueThingType{x: "do", y: "touch", z: "this"}},
+			{descr: "update pointer 2", expr: `set x (getOpaque) ; setProp $x -x "yes" ; setProp $x -y "this" -z "too"`, want: opaqueThingType{x: "yes", y: "this", z: "too"}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.descr, func(t *testing.T) {
+
+				outW := bytes.NewBuffer(nil)
+				inst := ucl.New(ucl.WithOut(outW))
+
+				inst.SetBuiltin("getOpaque", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+					return ucl.Opaque(opaqueThing), nil
+				})
+				inst.SetBuiltin("setProp", func(ctx context.Context, args ucl.CallArgs) (any, error) {
+					var o *opaqueThingType
+
+					if err := args.Bind(&o); err != nil {
+						return nil, err
+					}
+
+					if args.HasSwitch("x") {
+						var s string
+						_ = args.BindSwitch("x", &s)
+						o.x = s
+					}
+					if args.HasSwitch("y") {
+						var s string
+						_ = args.BindSwitch("y", &s)
+						o.y = s
+					}
+					if args.HasSwitch("z") {
+						var s string
+						_ = args.BindSwitch("z", &s)
+						o.z = s
+					}
+
+					return nil, nil
+				})
+
+				_, err := inst.Eval(context.Background(), tt.expr)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, *opaqueThing)
+			})
+		}
+	})
 }
 
 func TestCallArgs_Bind(t *testing.T) {

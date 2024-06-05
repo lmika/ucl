@@ -110,6 +110,8 @@ func (b boolObject) Truthy() bool {
 
 func toGoValue(obj object) (interface{}, bool) {
 	switch v := obj.(type) {
+	case OpaqueObject:
+		return v.v, true
 	case nil:
 		return nil, true
 	case strObject:
@@ -149,6 +151,8 @@ func toGoValue(obj object) (interface{}, bool) {
 
 func fromGoValue(v any) (object, error) {
 	switch t := v.(type) {
+	case OpaqueObject:
+		return t, nil
 	case nil:
 		return nil, nil
 	case string:
@@ -474,6 +478,22 @@ func (s structProxyObject) Each(fn func(k string, v object) error) error {
 		}
 	}
 	return nil
+}
+
+type OpaqueObject struct {
+	v any
+}
+
+func Opaque(v any) OpaqueObject {
+	return OpaqueObject{v: v}
+}
+
+func (p OpaqueObject) String() string {
+	return fmt.Sprintf("opaque{%T}", p.v)
+}
+
+func (p OpaqueObject) Truthy() bool {
+	return p.v != nil
 }
 
 type errBreak struct {

@@ -121,6 +121,23 @@ func (ca CallArgs) bindArg(v interface{}, arg object) error {
 	}
 
 	switch t := arg.(type) {
+	case OpaqueObject:
+		if v == nil {
+			return errors.New("opaque object not bindable to nil")
+		}
+
+		vr := reflect.ValueOf(v)
+		tr := reflect.ValueOf(t.v)
+		if vr.Kind() != reflect.Pointer {
+			return errors.New("expected pointer for an opaque object bind")
+		}
+
+		if !tr.Type().AssignableTo(vr.Elem().Type()) {
+			return errors.New("opaque object not assignable to passed in value")
+		}
+
+		vr.Elem().Set(tr)
+		return nil
 	case proxyObject:
 		return bindProxyObject(v, reflect.ValueOf(t.p))
 	case listableProxyObject:
@@ -142,6 +159,18 @@ func canBindArg(v interface{}, arg object) bool {
 	}
 
 	switch t := arg.(type) {
+	case OpaqueObject:
+		vr := reflect.ValueOf(v)
+		tr := reflect.ValueOf(t.v)
+		if vr.Kind() != reflect.Pointer {
+			return false
+		}
+
+		if !tr.Type().AssignableTo(vr.Elem().Type()) {
+			return false
+		}
+
+		return true
 	case proxyObject:
 		return canBindProxyObject(v, reflect.ValueOf(t.p))
 	case listableProxyObject:
